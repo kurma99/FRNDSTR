@@ -1,0 +1,44 @@
+# Runs the server and shared-API tests on every push and pull request.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server-tests:
+    name: Server tests (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.2-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ffmpeg, exiftool, zip
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get -q update
+          apt-get -q install -y --no-install-recommends ffmpeg zip unzip libimage-exiftool-perl
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: server/.build
+          key: server-${{ runner.os }}-${{ hashFiles('server/Package.resolved') }}
+          restore-keys: server-${{ runner.os }}-
+      - name: swift test
+        working-directory: server
+        run: swift test
+
+  api-tests:
+    name: FriendsterAPI tests
+    runs-on: ubuntu-latest
+    container: swift:6.2-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: swift test
+        working-directory: Shared/FriendsterAPI
+        run: swift test

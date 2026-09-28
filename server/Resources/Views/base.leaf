@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>#(title) · #(instanceName)</title>
+  <style>
+    :root {
+      --bg: #fbf8ef; --card: #ffffff; --text: #2b2206; --muted: #6f6650; --line: #ece5cf;
+      --primary: #fccc38; --on-primary: #2b2206; --accent: #8f6b00; --danger: #b3261e;
+      --gradient: linear-gradient(135deg, #d1de73, #fae06b 40%, #fac952 70%, #f5a654);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #15130c; --card: #211e14; --text: #f4efdd; --muted: #b3aa8f; --line: #3a3423;
+              --accent: #ffd64d; --danger: #ff8a80; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: var(--bg); color: var(--text); }
+    header { background: var(--gradient); color: #2b2206; padding: 18px 24px; display: flex;
+             align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    header h1 { margin: 0; font: italic 700 30px/1 "Snell Roundhand", "Brush Script MT", cursive; }
+    header .sub { font-size: 13px; opacity: .8; }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+    /* Grid items default to min-width:auto, which lets wide tables push the page past the screen. */
+    main > * { min-width: 0; }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 16px;
+              overflow-wrap: anywhere; }
+    .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+    .scroll table.wide { min-width: 620px; }
+    /* Leave room for the sticky flash when jumping to #invites, #users … */
+    section { scroll-margin-top: 72px; }
+    .scroll td, .scroll th { overflow-wrap: normal; }
+    h2 { margin: 0 0 12px; font-size: 18px; }
+    h3 { margin: 16px 0 8px; font-size: 15px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+    .tile { border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+    .tile .value { font-size: 22px; font-weight: 700; }
+    .tile .label { color: var(--muted); font-size: 13px; }
+    .muted { color: var(--muted); }
+    /* Sticky so it's visible after jumping to a section (#invites, #users …). */
+    .flash { background: var(--primary); color: var(--on-primary); border-radius: 14px; padding: 12px 16px; font-weight: 600;
+             position: sticky; top: 8px; z-index: 10; box-shadow: 0 4px 16px rgba(0,0,0,.15); }
+    .error { color: var(--danger); font-weight: 600; }
+    form.inline { display: inline; }
+    /* 16px keeps iOS Safari from zooming in when a field is focused. */
+    input, select { font: inherit; font-size: 16px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line);
+                    background: var(--bg); color: var(--text); }
+    input[type=text], input[type=password] { width: 100%; }
+    button { font: inherit; font-weight: 600; border: 0; border-radius: 999px; padding: 8px 16px; cursor: pointer;
+             background: var(--line); color: var(--text); }
+    button.primary { background: var(--primary); color: var(--on-primary); }
+    button.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    button.small { padding: 4px 10px; font-size: 13px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+             background: var(--primary); color: var(--on-primary); }
+    code { font-size: 15px; font-weight: 700; letter-spacing: .06em; }
+    .narrow { max-width: 420px; margin: 40px auto; }
+    .field { display: grid; gap: 4px; margin-bottom: 12px; }
+    .field label { font-weight: 600; font-size: 14px; }
+    details summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--accent); }
+    details[open] .actions { margin-top: 8px; }
+    .nowrap { white-space: nowrap; }
+    /* Management panel under each person: pinned to the visible part of the scrolling table. */
+    tr.manage-row td { border-bottom: 1px solid var(--line); padding-top: 0; }
+    details.manage { position: sticky; left: 0; max-width: min(100%, calc(100vw - 72px)); }
+    details.danger summary { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1>Friendster</h1><div class="sub">#(instanceName) · admin</div></div>
+    #import("header")
+  </header>
+  #import("body")
+</body>
+</html>

@@ -1,0 +1,141 @@
+#extend("base"):
+  #export("header"):
+  <form method="post" action="/admin/logout" class="actions">
+    <span>#(me)</span>
+    <input type="hidden" name="csrf" value="#(csrf)">
+    <button class="small" type="submit">Log out</button>
+  </form>
+  #endexport
+  #export("body"):
+  <main>
+    #if(flash):<div class="flash" role="status">#(flash)</div>#endif
+
+    <section id="storage">
+      <h2>Storage · #(stats.totalSize) in total</h2>
+      <div class="grid">
+        <div class="tile"><div class="value">#count(stats.users)</div><div class="label">People</div></div>
+        <div class="tile"><div class="value">#(stats.postCount)</div><div class="label">Posts</div></div>
+        <div class="tile"><div class="value">#(stats.commentCount)</div><div class="label">Comments</div></div>
+        <div class="tile"><div class="value">#(stats.reactionCount)</div><div class="label">Reactions</div></div>
+      </div>
+      <h3>By kind</h3>
+      <div class="scroll"><table>
+        <thead><tr><th>What</th><th class="num">Files</th><th class="num">Size</th></tr></thead>
+        <tbody>
+        #for(bucket in stats.buckets):
+          <tr><td>#(bucket.label)</td><td class="num">#(bucket.count)</td><td class="num">#(bucket.size)</td></tr>
+        #endfor
+        </tbody>
+      </table></div>
+      <p class="muted">#(stats.unpostedUploads) upload(s) never became a post (e.g. a cancelled share).</p>
+      <form method="post" action="/admin/maintenance/cleanup">
+        <input type="hidden" name="csrf" value="#(csrf)">
+        <button type="submit" class="small">Remove unposted uploads older than a day</button>
+      </form>
+    </section>
+
+    <section id="users">
+      <h2>People</h2>
+      <div class="scroll"><table class="wide">
+        <thead><tr><th>Name</th><th>Joined</th><th class="num">Posts</th><th class="num">Photos</th><th class="num">Videos</th>
+          <th class="num">Live moments</th><th class="num">Storage</th><th class="num">Sessions</th></tr></thead>
+        <tbody>
+        #for(user in stats.users):
+          <tr>
+            <td><strong>#(user.displayName)</strong> <span class="muted">@#(user.username)</span>
+              #if(user.isAdmin): <span class="badge">admin</span>#endif</td>
+            <td>#(user.joined)</td>
+            <td class="num">#(user.posts)</td><td class="num">#(user.images)</td><td class="num">#(user.videos)</td>
+            <td class="num">#(user.liveMoments)</td><td class="num">#(user.size)</td><td class="num">#(user.sessions)</td>
+          </tr>
+          <tr class="manage-row">
+            <td colspan="8">
+              <details class="manage">
+                <summary>Manage #(user.displayName)</summary>
+                <div class="actions">
+                  <form class="inline" method="post" action="/admin/users/#(user.id)/kick">
+                    <input type="hidden" name="csrf" value="#(csrf)"><button class="small" type="submit">Log out everywhere</button></form>
+                  <form class="inline" method="post" action="/admin/users/#(user.id)/password">
+                    <input type="hidden" name="csrf" value="#(csrf)"><button class="small" type="submit">Reset password</button></form>
+                  <form class="inline" method="post" action="/admin/users/#(user.id)/admin">
+                    <input type="hidden" name="csrf" value="#(csrf)">
+                    <button class="small" type="submit">#if(user.isAdmin):Remove admin#else:Make admin#endif</button></form>
+                </div>
+                <details class="danger">
+                  <summary>Delete account…</summary>
+                  <form method="post" action="/admin/users/#(user.id)/delete" class="actions">
+                    <input type="hidden" name="csrf" value="#(csrf)">
+                    <input type="text" name="confirm" placeholder="type #(user.username)" aria-label="Type the username to confirm" style="max-width: 180px">
+                    <button class="small danger" type="submit">Delete with all posts &amp; media</button>
+                  </form>
+                </details>
+              </details>
+            </td>
+          </tr>
+        #endfor
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="invites">
+      <h2>Invite codes</h2>
+      <p class="muted">Give a code to a family member. They open the Friendster app, connect to <strong>#(serverAddress)</strong>, choose “Sign up” and enter it. Each code works once.</p>
+      <form method="post" action="/admin/invites" class="actions">
+        <input type="hidden" name="csrf" value="#(csrf)">
+        <select name="count" aria-label="How many">
+          <option value="1">1 code</option><option value="3">3 codes</option><option value="5">5 codes</option>
+        </select>
+        <button class="primary" type="submit">Create</button>
+      </form>
+      <h3>Unused</h3>
+      #if(!hasOpenInvites):<p class="muted">No unused codes.</p>#else:
+      <div class="scroll"><table>
+        <thead><tr><th>Code</th><th>Created</th><th></th></tr></thead>
+        <tbody>
+        #for(invite in openInvites):
+          <tr><td class="nowrap"><code>#(invite.code)</code></td><td>#(invite.created)</td>
+            <td><form class="inline" method="post" action="/admin/invites/#(invite.id)/revoke">
+              <input type="hidden" name="csrf" value="#(csrf)"><button class="small" type="submit">Revoke</button></form></td></tr>
+        #endfor
+        </tbody>
+      </table></div>
+      #endif
+      <h3>Used</h3>
+      #if(!hasUsedInvites):<p class="muted">No codes used yet.</p>#else:
+      <div class="scroll"><table>
+        <thead><tr><th>Code</th><th>Used by</th><th>When</th></tr></thead>
+        <tbody>
+        #for(invite in usedInvites):
+          <tr><td class="muted nowrap">#(invite.code)</td><td>#(invite.usedBy)</td><td>#(invite.usedAt)</td></tr>
+        #endfor
+        </tbody>
+      </table></div>
+      #endif
+    </section>
+
+    <section id="settings">
+      <h2>Settings</h2>
+      <h3>Reaction emoji</h3>
+      <form method="post" action="/admin/settings/reactions" class="actions">
+        <input type="hidden" name="csrf" value="#(csrf)">
+        <input type="text" name="emojis" value="#(reactions)" style="max-width: 360px; font-size: 20px" aria-label="Reaction emoji">
+        <button class="primary" type="submit">Save</button>
+      </form>
+      <p class="muted">Up to 12. Reactions people already gave with a removed emoji stay visible.</p>
+
+      <h3>Daily moment time</h3>
+      <form method="post" action="/admin/settings/moment-window" class="actions">
+        <input type="hidden" name="csrf" value="#(csrf)">
+        <label>From <select name="startHour">
+          #for(hour in startHours):<option value="#(hour)" #if(hour == windowStart):selected#endif>#(hour):00</option>#endfor
+        </select></label>
+        <label>until <select name="endHour">
+          #for(hour in endHours):<option value="#(hour)" #if(hour == windowEnd):selected#endif>#(hour):00</option>#endfor
+        </select></label>
+        <button class="primary" type="submit">Save</button>
+      </form>
+      <p class="muted">Every day one random time in this window is sent to everyone (time zone #(timeZone)). Changes apply from tomorrow.</p>
+    </section>
+  </main>
+  #endexport
+#endextend
