@@ -60,13 +60,13 @@ enum Appearance: String, CaseIterable, Identifiable {
     }
 }
 
-/// Bold monospaced wordmark.
+/// Bold italic monospaced wordmark.
 struct Wordmark: View {
     var size: CGFloat = 30
 
     var body: some View {
         Text(verbatim: "FRNDS")
-            .font(.system(size: size, weight: .black, design: .monospaced))
+            .font(.system(size: size, weight: .black, design: .monospaced).italic())
             .tracking(size * 0.04)
             .lineLimit(1)
             .minimumScaleFactor(0.5)
