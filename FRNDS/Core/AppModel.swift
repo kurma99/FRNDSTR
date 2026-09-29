@@ -15,6 +15,8 @@ final class AppModel {
     private(set) var instanceName: String = "FRNDS"
     private(set) var currentUser: UserDTO?
     private(set) var token: String?
+    /// Service token when the server sits behind Cloudflare Access.
+    private(set) var cloudflareAccess: CloudflareAccess?
     /// Reaction palette configured by the server admin.
     private(set) var reactionEmojis: [String] = API.defaultReactionEmojis
     private(set) var momentWindow: MomentWindow = .default
@@ -37,13 +39,14 @@ final class AppModel {
 
     /// Client for the current server, authenticated when signed in.
     var client: APIClient? {
-        serverURL.map { APIClient(baseURL: $0, token: token) }
+        serverURL.map { APIClient(baseURL: $0, token: token, access: cloudflareAccess) }
     }
 
     init() {
         serverURL = defaults.url(forKey: Keys.serverURL)
         instanceName = defaults.string(forKey: Keys.instanceName) ?? "FRNDS"
         token = Keychain.get(Keys.token)
+        cloudflareAccess = CloudflareAccess.load()
         if let palette = defaults.stringArray(forKey: Keys.reactionEmojis), !palette.isEmpty {
             reactionEmojis = palette
         }
@@ -54,12 +57,15 @@ final class AppModel {
 
     // MARK: Server
 
-    func connect(to input: String) async throws {
+    /// Pass `access` for servers behind Cloudflare Access (e.g. a Cloudflare Tunnel).
+    func connect(to input: String, access: CloudflareAccess? = nil) async throws {
         guard let url = ServerAddress.parse(input) else {
             throw APIError.server(status: 0, reason: String(localized: "Please enter an address like 192.168.1.20:8080."))
         }
-        let health = try await APIClient(baseURL: url).health()
+        let health = try await APIClient(baseURL: url, access: access).health()
         serverURL = url
+        cloudflareAccess = access
+        CloudflareAccess.save(access)
         instanceName = health.instanceName
         defaults.set(url, forKey: Keys.serverURL)
         defaults.set(health.instanceName, forKey: Keys.instanceName)
@@ -68,6 +74,8 @@ final class AppModel {
     func disconnectServer() {
         clearSession()
         serverURL = nil
+        cloudflareAccess = nil
+        CloudflareAccess.save(nil)
         defaults.removeObject(forKey: Keys.serverURL)
     }
 

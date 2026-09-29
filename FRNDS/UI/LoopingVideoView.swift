@@ -42,7 +42,9 @@ struct LoopingVideoView: View {
 
     private func setUp() {
         if player == nil {
-            let item = AVPlayerItem(url: url)
+            // AVPlayer can't send custom headers, but it can send the Cloudflare Access cookie.
+            let asset = AVURLAsset(url: url, options: [AVURLAssetHTTPCookiesKey: CloudflareAccess.cookies(for: url)])
+            let item = AVPlayerItem(asset: asset)
             let queue = AVQueuePlayer()
             queue.isMuted = isMuted
             looper = AVPlayerLooper(player: queue, templateItem: item)

@@ -22,6 +22,19 @@ import Testing
 }
 
 @MainActor
+@Suite struct CloudflareAccessTests {
+    @Test func trimsAndBuildsHeaders() throws {
+        let access = try #require(CloudflareAccess(clientID: " abc.access ", clientSecret: "s3cret\n"))
+        #expect(access.headers == ["CF-Access-Client-Id": "abc.access", "CF-Access-Client-Secret": "s3cret"])
+    }
+
+    @Test(arguments: [("", "secret"), ("id", "  "), ("", "")])
+    func needsBothParts(id: String, secret: String) {
+        #expect(CloudflareAccess(clientID: id, clientSecret: secret) == nil)
+    }
+}
+
+@MainActor
 @Suite struct ReactionPredictionTests {
     private func post(reactions: [ReactionCount], mine: String?) -> PostDTO {
         let user = UserDTO(id: UUID(), username: "anna", displayName: "Anna", createdAt: .now)

@@ -4,6 +4,9 @@ import SwiftUI
 struct ConnectServerView: View {
     @Environment(AppModel.self) private var app
     @State private var address = ""
+    @State private var usesCloudflareAccess = false
+    @State private var accessClientID = ""
+    @State private var accessClientSecret = ""
     @State private var isConnecting = false
     @State private var errorMessage: String?
     @FocusState private var fieldFocused: Bool
@@ -38,6 +41,13 @@ struct ConnectServerView: View {
                             .glassEffect(.regular.interactive(), in: .capsule)
                             .accessibilityIdentifier("serverAddressField")
 
+                        if usesCloudflareAccess {
+                            credentialField("Client ID", text: $accessClientID, isSecret: false)
+                                .accessibilityIdentifier("cfAccessClientIDField")
+                            credentialField("Client Secret", text: $accessClientSecret, isSecret: true)
+                                .accessibilityIdentifier("cfAccessClientSecretField")
+                        }
+
                         Button(action: connect) {
                             Group {
                                 if isConnecting {
@@ -52,10 +62,20 @@ struct ConnectServerView: View {
                         }
                         .primaryButtonStyle()
                         .controlSize(.large)
-                        .disabled(address.trimmingCharacters(in: .whitespaces).isEmpty || isConnecting)
+                        .disabled(!canConnect)
                         .accessibilityIdentifier("connectButton")
                     }
                 }
+
+                Toggle(isOn: $usesCloudflareAccess.animation()) {
+                    Label("Cloudflare Access", systemImage: "lock.shield")
+                        .font(.subheadline.weight(.medium))
+                }
+                .tint(Theme.ink.opacity(0.7))
+                .foregroundStyle(Theme.ink)
+                .padding(.horizontal, 8)
+                .accessibilityHint("Turn on if your server is published through a Cloudflare Tunnel protected by Cloudflare Access.")
+                .accessibilityIdentifier("cfAccessToggle")
 
                 if let errorMessage {
                     Text(errorMessage)
@@ -70,7 +90,9 @@ struct ConnectServerView: View {
 
                 Spacer()
 
-                Text("Enter the address and port of your FRNDS server. Plain http works fine on your home network or over Tailscale (e.g. 100.x.y.z:8080).")
+                Text(usesCloudflareAccess
+                     ? LocalizedStringKey("Enter your tunnel's address (e.g. https://frnds.example.com) and a service token from Cloudflare Zero Trust › Access › Service Auth. Your Access policy needs a Service Auth rule for that token.")
+                     : "Enter the address and port of your FRNDS server. Plain http works fine on your home network or over Tailscale (e.g. 100.x.y.z:8080).")
                     .font(.footnote)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Theme.ink.opacity(0.8))
@@ -79,17 +101,49 @@ struct ConnectServerView: View {
         }
         .onAppear {
             if let url = app.serverURL { address = ServerAddress.displayString(for: url) }
+            if let access = app.cloudflareAccess {
+                usesCloudflareAccess = true
+                accessClientID = access.clientID
+                accessClientSecret = access.clientSecret
+            }
         }
     }
 
+    private var accessToken: CloudflareAccess? {
+        usesCloudflareAccess ? CloudflareAccess(clientID: accessClientID, clientSecret: accessClientSecret) : nil
+    }
+
+    private var canConnect: Bool {
+        !address.trimmingCharacters(in: .whitespaces).isEmpty && !isConnecting
+            && (!usesCloudflareAccess || accessToken != nil)
+    }
+
+    private func credentialField(_ title: LocalizedStringKey, text: Binding<String>, isSecret: Bool) -> some View {
+        Group {
+            if isSecret {
+                SecureField(title, text: text, prompt: Text(title).foregroundStyle(Theme.ink.opacity(0.55)))
+            } else {
+                TextField(title, text: text, prompt: Text(title).foregroundStyle(Theme.ink.opacity(0.55)))
+            }
+        }
+        .textContentType(.none)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .focused($fieldFocused)
+        .padding(.horizontal, 20)
+        .frame(height: 54)
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .transition(.blurReplace)
+    }
+
     private func connect() {
-        guard !isConnecting else { return }
+        guard canConnect else { return }
         fieldFocused = false
         isConnecting = true
         Task {
             defer { isConnecting = false }
             do {
-                try await app.connect(to: address)
+                try await app.connect(to: address, access: accessToken)
                 errorMessage = nil
             } catch {
                 withAnimation { errorMessage = error.localizedDescription }

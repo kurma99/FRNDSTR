@@ -20,12 +20,15 @@ final class ImagePipeline {
         memory.object(forKey: url as NSURL)
     }
 
-    func image(for url: URL, token: String?) async throws -> UIImage {
+    func image(for url: URL, token: String?, access: CloudflareAccess? = nil) async throws -> UIImage {
         if let cached = cachedImage(for: url) { return cached }
         if let running = inFlight[url] { return try await running.value }
 
         var request = URLRequest(url: url)
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        for (field, value) in access?.headers ?? [:] {
+            request.setValue(value, forHTTPHeaderField: field)
+        }
 
         let session = session
         let task = Task {

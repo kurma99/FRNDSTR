@@ -5,6 +5,8 @@ enum APIError: LocalizedError {
     case server(status: Int, reason: String)
     case unauthorized(reason: String)
     case notFRNDS
+    /// Cloudflare Access answered instead of the server: no service token, or a wrong one.
+    case cloudflareAccessDenied
     case transport(URLError)
     case invalidResponse
 
@@ -14,6 +16,8 @@ enum APIError: LocalizedError {
             reason
         case .notFRNDS:
             String(localized: "That address answered, but it doesn't look like a FRNDS server.")
+        case .cloudflareAccessDenied:
+            String(localized: "Cloudflare Access blocked the connection. Check the service token's Client ID and Client Secret.")
         case let .transport(error):
             switch error.code {
             case .cannotConnectToHost, .cannotFindHost, .timedOut, .networkConnectionLost, .notConnectedToInternet:
@@ -33,6 +37,8 @@ enum APIError: LocalizedError {
 struct APIClient {
     let baseURL: URL
     var token: String?
+    /// Service token for servers behind Cloudflare Access.
+    var access: CloudflareAccess?
 
     private static let session: URLSession = {
         let configuration = URLSessionConfiguration.default
@@ -251,7 +257,9 @@ struct APIClient {
         } catch let error as URLError {
             throw APIError.transport(error)
         }
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw APIError.invalidResponse }
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if Self.isCloudflareAccessResponse(http) { throw APIError.cloudflareAccessDenied }
+        guard http.statusCode == 200 else { throw APIError.invalidResponse }
 
         let ext = switch response.mimeType {
         case "video/mp4": "mp4"
@@ -325,6 +333,9 @@ struct APIClient {
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        for (field, value) in access?.headers ?? [:] {
+            request.setValue(value, forHTTPHeaderField: field)
+        }
         return request
     }
 
@@ -339,8 +350,16 @@ struct APIClient {
         }
     }
 
+    /// Access either redirects to its login page (`*.cloudflareaccess.com`) or answers 403 itself.
+    private static func isCloudflareAccessResponse(_ http: HTTPURLResponse) -> Bool {
+        if http.url?.host()?.hasSuffix("cloudflareaccess.com") == true { return true }
+        return http.statusCode == 403 && http.value(forHTTPHeaderField: "cf-ray") != nil
+            && http.mimeType != "application/json"
+    }
+
     private func decode<Response: Decodable>(_ data: Data, _ response: URLResponse) throws -> Response {
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if Self.isCloudflareAccessResponse(http) { throw APIError.cloudflareAccessDenied }
 
         guard (200..<300).contains(http.statusCode) else {
             let reason = (try? API.makeDecoder().decode(APIErrorResponse.self, from: data))?.reason

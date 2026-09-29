@@ -41,7 +41,7 @@ struct RemoteImage: View {
             return
         }
         do {
-            let loaded = try await ImagePipeline.shared.image(for: url, token: client.token)
+            let loaded = try await ImagePipeline.shared.image(for: url, token: client.token, access: client.access)
             withAnimation(.easeOut(duration: 0.2)) { image = loaded }
         } catch {
             if !Task.isCancelled { failed = true }
