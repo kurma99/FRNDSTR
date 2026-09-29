@@ -2,11 +2,12 @@
 
 Self-hosted backend for the Frndstr family app: Swift (Vapor) + SQLite + ffmpeg, in one container.
 
-> **Vibe coded, not audited:** run it behind Tailscale (or another private network), not on the open
-> internet. If you're unsure, have your own coding agent do a security review first. See the
-> [main README](../README.md).
+> **Vibe coded, not audited:** host it behind Tailscale or Cloudflare Access, never directly on the internet.
 
 ## Run with Docker
+
+The easiest way is the prebuilt image with the standalone [`docker-compose.yml`](../docker-compose.yml)
+in the repo root, see the [main README](../README.md#run-the-server). To build from source:
 
 ```sh
 cd server
