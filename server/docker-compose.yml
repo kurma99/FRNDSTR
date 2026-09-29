@@ -1,11 +1,11 @@
 services:
-  friendster:
+  frnds:
     build:
       context: ..
       dockerfile: server/Dockerfile
-    # Set FRIENDSTER_IMAGE=ghcr.io/<owner>/friendster-server:latest in .env to use the prebuilt image
+    # Set FRNDS_IMAGE=ghcr.io/<owner>/frnds-server:latest in .env to use the prebuilt image
     # (docker compose pull); without it, `docker compose up --build` builds locally.
-    image: ${FRIENDSTER_IMAGE:-friendster-server:latest}
+    image: ${FRNDS_IMAGE:-frnds-server:latest}
     restart: unless-stopped
     env_file:
       - path: .env
@@ -13,7 +13,7 @@ services:
     environment:
       DATA_DIR: /data
     ports:
-      - "${FRIENDSTER_PORT:-8080}:8080"
+      - "${FRNDS_PORT:-8080}:8080"
     volumes:
       # SQLite database + all media. Back up this folder.
       - ./data:/data

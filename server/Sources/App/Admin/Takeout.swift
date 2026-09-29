@@ -1,5 +1,5 @@
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 /// Builds a zip of everything a user posted: the media files (photos get caption, location and date
@@ -39,7 +39,7 @@ enum Takeout {
         let config = app.appConfig
         let stamp = ISO8601DateFormatter().string(from: .now).prefix(10)
         let workDir = FileManager.default.temporaryDirectory.appendingPathComponent("takeout-\(UUID().uuidString)")
-        let rootName = "friendster-\(user.username)-\(stamp)"
+        let rootName = "frnds-\(user.username)-\(stamp)"
         let root = workDir.appendingPathComponent(rootName)
         let postsDir = root.appendingPathComponent("posts")
         try FileManager.default.createDirectory(at: postsDir, withIntermediateDirectories: true)
@@ -102,7 +102,7 @@ enum Takeout {
                                    exportedAt: .now, server: config.instanceName))
             .write(to: root.appendingPathComponent("profile.json"))
         try Data("""
-        Friendster export for \(user.displayName) (@\(user.username))
+        FRNDS export for \(user.displayName) (@\(user.username))
 
         posts/        one folder per post with its photos and videos (original files).
                       Photos have the caption, location and date written into them, so apps

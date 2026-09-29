@@ -2,6 +2,6 @@
 **/.swiftpm
 server/data
 server/.env
-Friendster
-Friendster.xcodeproj
+FRNDS
+FRNDS.xcodeproj
 docs

@@ -1,12 +1,12 @@
 @testable import App
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Testing
 import VaporTesting
 
 /// Each test gets an in-memory database and its own temporary media directory.
 func withTestApp(_ test: (Application, URL) async throws -> Void) async throws {
-    let dataDir = FileManager.default.temporaryDirectory.appendingPathComponent("friendster-tests-\(UUID().uuidString)")
+    let dataDir = FileManager.default.temporaryDirectory.appendingPathComponent("frnds-tests-\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: dataDir) }
     var config = AppConfig.fromEnvironment()
     config.dataDirectory = dataDir.path

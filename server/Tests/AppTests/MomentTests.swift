@@ -1,6 +1,6 @@
 @testable import App
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Testing
 import VaporTesting
 

@@ -1,6 +1,6 @@
 import Fluent
 import FluentSQLiteDriver
-import FriendsterAPI
+import FRNDSAPI
 import Leaf
 import Vapor
 
@@ -44,7 +44,7 @@ func configure(_ app: Application, config: AppConfig = .fromEnvironment()) async
 
     app.views.use(.leaf)
     app.sessions.use(.memory)
-    app.sessions.configuration.cookieName = "friendster-admin"
+    app.sessions.configuration.cookieName = "frnds-admin"
 
     try await app.autoMigrate()
     try await Bootstrap.announceSetup(on: app)

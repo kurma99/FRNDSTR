@@ -1,5 +1,5 @@
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 /// Family member list, profiles, profile editing and avatars.

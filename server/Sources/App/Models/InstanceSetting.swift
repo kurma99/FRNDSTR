@@ -1,5 +1,5 @@
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 /// Key/value store for settings admins can change in the app.

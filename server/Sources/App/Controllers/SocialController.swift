@@ -1,5 +1,5 @@
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 /// Reactions and comments on posts.

@@ -1,6 +1,6 @@
 import Fluent
 import FluentSQL
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 struct PostController: RouteCollection {

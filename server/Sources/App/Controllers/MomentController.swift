@@ -1,5 +1,5 @@
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 /// Sending, listing and viewing moments.

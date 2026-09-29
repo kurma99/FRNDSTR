@@ -1,5 +1,5 @@
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 /// A friend request (`pending`) or an accepted friendship. At most one row per pair of users.

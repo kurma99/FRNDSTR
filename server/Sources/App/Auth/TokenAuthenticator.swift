@@ -1,5 +1,5 @@
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 /// Authenticates `Authorization: Bearer <token>`. For media routes the token may also come

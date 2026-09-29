@@ -1,4 +1,4 @@
-# Friendster
+# FRNDS
 
 > [!WARNING]
 > **This project was vibe coded.** It was built almost entirely by an AI coding agent, with a human
@@ -34,8 +34,8 @@ you run yourself with one `docker compose up`.
 | Path | What |
 |---|---|
 | `server/` | Swift (Vapor) + SQLite + ffmpeg server, Dockerfile, compose file. See [server/README.md](server/README.md). |
-| `Shared/FriendsterAPI/` | Dependency-free Swift package with the API types shared by app and server. |
-| `Friendster/`, `Friendster.xcodeproj` | The iOS app (SwiftUI, iOS 26+). |
+| `Shared/FRNDSAPI/` | Dependency-free Swift package with the API types shared by app and server. |
+| `FRNDS/`, `FRNDS.xcodeproj` | The iOS app (SwiftUI, iOS 26+). |
 | `docs/` | [PLAN.md](docs/PLAN.md) (design + milestones) and [JOURNAL.md](docs/JOURNAL.md) (dev log). |
 
 ## Run the server
@@ -43,13 +43,13 @@ you run yourself with one `docker compose up`.
 On any machine with Docker (a NAS, a Raspberry Pi 5, an old laptop):
 
 ```sh
-git clone <this repo> friendster && cd friendster/server
+git clone <this repo> frnds && cd frnds/server
 cp .env.example .env      # instance name, port, time zone
 docker compose up -d --build
 ```
 
 Or use the prebuilt image instead of building (amd64 + arm64, published by GitHub Actions): set
-`FRIENDSTER_IMAGE=ghcr.io/<owner>/friendster-server:latest` in `.env`, then
+`FRNDS_IMAGE=ghcr.io/<owner>/frnds-server:latest` in `.env`, then
 `docker compose pull && docker compose up -d`.
 
 Then:
@@ -61,7 +61,7 @@ Then:
 
 ## Run the app
 
-The app isn't on the App Store. Open `Friendster.xcodeproj` in Xcode, set **your own** team and bundle
+The app isn't on the App Store. Open `FRNDS.xcodeproj` in Xcode, set **your own** team and bundle
 identifier under *Signing & Capabilities*, and run it on your iPhone (or ship it to your family through
 TestFlight). On first launch, enter your server's address (e.g. `https://box.tailnet.ts.net` or
 `http://100.x.y.z:8080`) and an invite code.
@@ -73,7 +73,7 @@ Traffic inside a tailnet is encrypted anyway.
 
 ```sh
 cd server && swift test                 # needs ffmpeg (brew install ffmpeg)
-cd Shared/FriendsterAPI && swift test
+cd Shared/FRNDSAPI && swift test
 ```
 
 The app's tests run in Xcode (⌘U). CI runs the server and API tests on Linux for every push, and

@@ -1,4 +1,4 @@
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 // The shared DTOs are plain Codable; make them usable as Vapor request/response content.

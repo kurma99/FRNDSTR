@@ -1,6 +1,6 @@
-# Friendster Server
+# FRNDS Server
 
-Self-hosted backend for the Friendster family app: Swift (Vapor) + SQLite + ffmpeg, in one container.
+Self-hosted backend for the FRNDS family app: Swift (Vapor) + SQLite + ffmpeg, in one container.
 
 > **Vibe coded, not audited:** run it behind Tailscale (or another private network), not on the open
 > internet. If you're unsure, have your own coding agent do a security review first. See the
@@ -15,19 +15,19 @@ docker compose up -d --build
 ```
 
 Prebuilt image instead (built by GitHub Actions for amd64 + arm64): put
-`FRIENDSTER_IMAGE=ghcr.io/<owner>/friendster-server:latest` in `.env`, then
+`FRNDS_IMAGE=ghcr.io/<owner>/frnds-server:latest` in `.env`, then
 `docker compose pull && docker compose up -d`. To update later, run the same two commands.
 
-Then open `http://<server>:<FRIENDSTER_PORT>/` in a browser. On the very first start it shows a
+Then open `http://<server>:<FRNDS_PORT>/` in a browser. On the very first start it shows a
 **setup page** where you create the admin account. Afterwards `/admin` is the admin dashboard
-(admins log in with their normal Friendster username and password):
+(admins log in with their normal FRNDS username and password):
 
 - storage in total, per kind (originals, display copies, thumbnails, moments, profile photos, database) and per person
 - people: log out everywhere, reset password, make/remove admin, delete an account with all its posts and media
 - invite codes: create and revoke
 - settings: reaction emoji, the daily moment time window
 
-- The app connects to `http://<server-ip>:<FRIENDSTER_PORT>` (default `8080`). Plain HTTP is fine on your LAN or over Tailscale.
+- The app connects to `http://<server-ip>:<FRNDS_PORT>` (default `8080`). Plain HTTP is fine on your LAN or over Tailscale.
 - For HTTPS over Tailscale: `tailscale serve --bg 8080`, then use `https://<machine>.<tailnet>.ts.net` in the app.
 - All data (SQLite + media) lives in `./data`. **Back up that folder.**
 
@@ -36,15 +36,15 @@ Then open `http://<server>:<FRIENDSTER_PORT>/` in a browser. On the very first s
 Everything below is also in the dashboard. Invite codes (each works once):
 
 ```sh
-docker compose exec friendster ./App invite            # one invite code
-docker compose exec friendster ./App invite --count 5  # several
+docker compose exec frnds ./App invite            # one invite code
+docker compose exec frnds ./App invite --count 5  # several
 ```
 
 Admin rights:
 
 ```sh
-docker compose exec friendster ./App admin anna           # grant
-docker compose exec friendster ./App admin anna --revoke   # revoke
+docker compose exec frnds ./App admin anna           # grant
+docker compose exec frnds ./App admin anna --revoke   # revoke
 ```
 
 Set `TIME_ZONE` in `.env` (e.g. `Europe/Berlin`): it defines "today" for the moments rule.
@@ -57,7 +57,7 @@ swift run App serve --hostname 0.0.0.0 --port 8080      # DATA_DIR defaults to .
 swift test
 ```
 
-> If the repo sits in an iCloud-synced folder, add `--scratch-path /tmp/friendster-build/server`
+> If the repo sits in an iCloud-synced folder, add `--scratch-path /tmp/frnds-build/server`
 > to `swift build/test/run`; synced extended attributes break code signing of test bundles.
 
 ## API (v1)
@@ -93,4 +93,4 @@ swift test
 | GET | `/api/takeout` | zip of your own posts (+ comments/reactions) and highlights |
 
 All endpoints except health/register/login need `Authorization: Bearer <token>`.
-DTOs live in the shared `FriendsterAPI` package (`../Shared/FriendsterAPI`).
+DTOs live in the shared `FRNDSAPI` package (`../Shared/FRNDSAPI`).

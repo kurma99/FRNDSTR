@@ -1,6 +1,6 @@
 @testable import App
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Testing
 import VaporTesting
 
@@ -42,8 +42,8 @@ private final class Browser {
     }
 
     private func remember(_ res: TestingHTTPResponse) {
-        if let value = res.headers.setCookie?["friendster-admin"]?.string {
-            cookie = "friendster-admin=\(value)"
+        if let value = res.headers.setCookie?["frnds-admin"]?.string {
+            cookie = "frnds-admin=\(value)"
         }
     }
 

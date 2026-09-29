@@ -1,5 +1,5 @@
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 /// Builds `PostDTO`s including reaction and comment counts, using one query per table for a whole page.

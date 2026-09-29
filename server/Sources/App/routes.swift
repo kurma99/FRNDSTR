@@ -1,4 +1,4 @@
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 func routes(_ app: Application) throws {

@@ -1,11 +1,11 @@
 # Build context is the repository root (see docker-compose.yml) because the server
-# depends on ../Shared/FriendsterAPI until the repos are split.
+# depends on ../Shared/FRNDSAPI until the repos are split.
 
 # ---------- Build ----------
 FROM swift:6.2-noble AS build
 WORKDIR /build
 
-COPY Shared/FriendsterAPI /Shared/FriendsterAPI
+COPY Shared/FRNDSAPI /Shared/FRNDSAPI
 COPY server/Package.swift server/Package.resolved ./
 RUN swift package resolve
 
@@ -23,14 +23,14 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get -q install -y --no-install-recommends ca-certificates tzdata ffmpeg zip libimage-exiftool-perl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd --user-group --create-home --home-dir /app friendster
+RUN useradd --user-group --create-home --home-dir /app frnds
 WORKDIR /app
-COPY --from=build --chown=friendster:friendster /staging /app
+COPY --from=build --chown=frnds:frnds /staging /app
 # Admin dashboard templates.
-COPY --chown=friendster:friendster server/Resources /app/Resources
-RUN mkdir -p /data && chown friendster:friendster /data
+COPY --chown=frnds:frnds server/Resources /app/Resources
+RUN mkdir -p /data && chown frnds:frnds /data
 
-USER friendster:friendster
+USER frnds:frnds
 ENV DATA_DIR=/data
 EXPOSE 8080
 ENTRYPOINT ["./App"]

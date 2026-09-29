@@ -18,7 +18,7 @@ struct AppConfig: Sendable {
 
     static func fromEnvironment() -> AppConfig {
         AppConfig(
-            instanceName: Environment.get("INSTANCE_NAME") ?? "Friendster",
+            instanceName: Environment.get("INSTANCE_NAME") ?? "FRNDS",
             dataDirectory: Environment.get("DATA_DIR") ?? "./data",
             ffmpegPath: Environment.get("FFMPEG_PATH") ?? findExecutable("ffmpeg") ?? "/usr/bin/ffmpeg",
             ffprobePath: Environment.get("FFPROBE_PATH") ?? findExecutable("ffprobe") ?? "/usr/bin/ffprobe",

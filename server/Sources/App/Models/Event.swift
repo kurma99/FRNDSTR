@@ -1,5 +1,5 @@
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 /// Something a user should be told about. The app polls `/api/inbox` and shows local notifications;

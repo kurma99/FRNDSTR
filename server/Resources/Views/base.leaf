@@ -75,7 +75,7 @@
 </head>
 <body>
   <header>
-    <div><h1>Friendster</h1><div class="sub">#(instanceName) · admin</div></div>
+    <div><h1>FRNDS</h1><div class="sub">#(instanceName) · admin</div></div>
     #import("header")
   </header>
   #import("body")

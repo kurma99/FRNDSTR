@@ -1,5 +1,5 @@
 import Fluent
-import FriendsterAPI
+import FRNDSAPI
 import Vapor
 
 /// Friend requests. Friends are who you'll share Moments with (M4); the feed stays family-wide.
