@@ -141,6 +141,8 @@ struct MomentJanitor: LifecycleHandler {
         if !expired.isEmpty { app.logger.info("Purged \(expired.count) expired moment(s).") }
         // Old notification events aren't needed anymore.
         try await Event.query(on: app.db).filter(\.$createdAt < now.addingTimeInterval(-30 * 24 * 3600)).delete()
+        // Uploads from cancelled or failed posts would otherwise stay on disk forever.
+        try await UserAdmin.removeStaleUploads(app: app)
         return expired.count
     }
 

@@ -195,6 +195,29 @@ struct PostTests {
         }
     }
 
+    @Test func h264VideoIsStoredOnce() async throws {
+        try await withTestApp { app, dir in
+            let token = try await signUp(app)
+            // What the app uploads: H.264 + AAC in MP4.
+            let mp4 = try await makeSample("clip.mp4", in: dir, args: [
+                "-f", "lavfi", "-i", "testsrc=duration=1:size=320x240:rate=30",
+                "-f", "lavfi", "-i", "sine=duration=1",
+                "-c:v", "libx264", "-c:a", "aac", "-shortest",
+            ])
+            let media = try await upload(app, token: token, data: mp4, type: HTTPMediaType(type: "video", subType: "mp4"))
+
+            let folder = dir.appendingPathComponent("media/\(media.id.uuidString)").path
+            let files = try FileManager.default.contentsOfDirectory(atPath: folder).sorted()
+            #expect(files == ["display.mp4", "thumb.jpg"])
+
+            // The original variant (save to Photos, takeout) is served from the remuxed file.
+            try await app.testing().test(.GET, "api/media/\(media.id.uuidString)/original?token=\(token)") { res in
+                #expect(res.status == .ok)
+                #expect(res.body.readableBytes > 0)
+            }
+        }
+    }
+
     @Test func feedPaginatesNewestFirst() async throws {
         try await withTestApp { app, dir in
             let token = try await signUp(app)

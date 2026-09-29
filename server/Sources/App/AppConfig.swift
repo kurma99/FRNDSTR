@@ -22,9 +22,12 @@ struct AppConfig: Sendable {
             dataDirectory: Environment.get("DATA_DIR") ?? "./data",
             ffmpegPath: Environment.get("FFMPEG_PATH") ?? findExecutable("ffmpeg") ?? "/usr/bin/ffmpeg",
             ffprobePath: Environment.get("FFPROBE_PATH") ?? findExecutable("ffprobe") ?? "/usr/bin/ffprobe",
-            timeZone: Environment.get("TIME_ZONE").flatMap(TimeZone.init(identifier:)) ?? .current
+            timeZone: Environment.get("TIME_ZONE").flatMap(TimeZone.init(identifier:)) ?? Self.defaultTimeZone
         )
     }
+
+    /// Used when `TIME_ZONE` is unset or invalid (Docker containers would otherwise run in UTC).
+    static let defaultTimeZone = TimeZone(identifier: "Europe/Berlin") ?? .current
 
     /// Looks up an executable in `$PATH` (plus Homebrew's prefix, which is often missing for GUI launches).
     static func findExecutable(_ name: String) -> String? {

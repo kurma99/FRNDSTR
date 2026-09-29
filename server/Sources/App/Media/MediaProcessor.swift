@@ -79,6 +79,14 @@ struct MediaProcessor: Sendable {
             ])
         }
 
+        // A remuxed MP4 holds the same streams as the uploaded MP4 (what the app sends), so keeping
+        // both would store every video twice. The remux (with faststart) then serves as the original too.
+        var storedOriginal = originalFile
+        if remuxed, originalFile.hasSuffix(".mp4") {
+            try FileManager.default.removeItem(atPath: original)
+            storedOriginal = display
+        }
+
         let thumb = "thumb.jpg"
         try await ProcessRunner.run(ffmpeg, [
             "-y", "-v", "error", "-i", displayPath, "-frames:v", "1",
@@ -89,7 +97,7 @@ struct MediaProcessor: Sendable {
         let displayInfo = try await probe(displayPath)
         guard let stream = displayInfo.videoStream else { throw MediaProcessingError.noVideoStream }
         let (width, height) = stream.displaySize
-        return ProcessedMedia(originalFile: originalFile, displayFile: display, thumbFile: thumb,
+        return ProcessedMedia(originalFile: storedOriginal, displayFile: display, thumbFile: thumb,
                               width: width, height: height,
                               duration: displayInfo.format?.duration.flatMap(Double.init))
     }

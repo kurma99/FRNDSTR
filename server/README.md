@@ -47,7 +47,7 @@ docker compose exec frnds ./App admin anna           # grant
 docker compose exec frnds ./App admin anna --revoke   # revoke
 ```
 
-Set `TIME_ZONE` in `.env` (e.g. `Europe/Berlin`): it defines "today" for the moments rule.
+`TIME_ZONE` in `.env` (IANA name, default `Europe/Berlin`) defines "today" for the moments rule.
 
 ## Develop locally (macOS)
 
