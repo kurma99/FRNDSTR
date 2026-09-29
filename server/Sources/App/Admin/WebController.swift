@@ -1,5 +1,5 @@
 import Fluent
-import FRNDSAPI
+import FrndstrAPI
 import Leaf
 import Vapor
 
@@ -106,7 +106,7 @@ struct WebController: RouteCollection {
         }
         guard user.isAdmin else {
             return try await render(req, "login", FormContext(title: "Log in", instanceName: instanceName(req), csrf: WebSession.csrf(req),
-                                                               error: "The dashboard is for admins only. Use the FRNDS app.", username: username))
+                                                               error: "The dashboard is for admins only. Use the Frndstr app.", username: username))
         }
         WebSession.logIn(try user.requireID(), req: req)
         return req.redirect(to: "/admin")

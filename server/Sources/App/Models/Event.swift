@@ -1,5 +1,5 @@
 import Fluent
-import FRNDSAPI
+import FrndstrAPI
 import Vapor
 
 /// Something a user should be told about. The app polls `/api/inbox` and shows local notifications;

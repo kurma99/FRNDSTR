@@ -1,5 +1,5 @@
 import Fluent
-import FRNDSAPI
+import FrndstrAPI
 import Vapor
 
 /// Sending, listing and viewing moments.

@@ -1,5 +1,5 @@
 import Fluent
-import FRNDSAPI
+import FrndstrAPI
 import Vapor
 
 /// Instance-wide settings: readable by everyone, writable by admins.

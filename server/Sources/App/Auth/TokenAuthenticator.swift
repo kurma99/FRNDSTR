@@ -1,5 +1,5 @@
 import Fluent
-import FRNDSAPI
+import FrndstrAPI
 import Vapor
 
 /// Authenticates `Authorization: Bearer <token>`. For media routes the token may also come

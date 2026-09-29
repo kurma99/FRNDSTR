@@ -2,15 +2,15 @@
 import PackageDescription
 
 let package = Package(
-    name: "FRNDSServer",
+    name: "FrndstrServer",
     platforms: [.macOS(.v14)],
     dependencies: [
         .package(url: "https://github.com/vapor/vapor.git", from: "4.115.0"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.12.0"),
         .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.8.0"),
         .package(url: "https://github.com/vapor/leaf.git", from: "4.4.0"),
-        // Local until the repos are split; then switch to the FRNDSAPI git URL (see docs/PLAN.md §6).
-        .package(path: "../Shared/FRNDSAPI"),
+        // Local until the repos are split; then switch to the FrndstrAPI git URL (see docs/PLAN.md §6).
+        .package(path: "../Shared/FrndstrAPI"),
     ],
     targets: [
         .executableTarget(
@@ -20,7 +20,7 @@ let package = Package(
                 .product(name: "Fluent", package: "fluent"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
                 .product(name: "Leaf", package: "leaf"),
-                .product(name: "FRNDSAPI", package: "FRNDSAPI"),
+                .product(name: "FrndstrAPI", package: "FrndstrAPI"),
             ]
         ),
         .testTarget(

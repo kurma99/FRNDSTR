@@ -1,6 +1,6 @@
 import Fluent
 import FluentSQL
-import FRNDSAPI
+import FrndstrAPI
 import Vapor
 
 struct PostController: RouteCollection {

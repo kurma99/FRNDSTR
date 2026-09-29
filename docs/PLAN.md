@@ -1,4 +1,4 @@
-# FRNDS — Plan
+# Frndstr — Plan
 
 Private, self-hosted family Instagram with BeReal-style Moments. This is a living document: update it when decisions change and log the *why* in [JOURNAL.md](JOURNAL.md).
 
@@ -47,14 +47,14 @@ The server stays small (one process + SQLite + a media folder = trivial backups)
 server/                    # self-contained; split into its own repo later (§6)
   Package.swift, Dockerfile, docker-compose.yml, .env.example, README.md
   Sources/App/{Models,Migrations,Controllers,Jobs}, Resources/Views (Leaf)
-Shared/FRNDSAPI/      # dependency-free SwiftPM package: Codable DTOs + endpoints
-FRNDS/                # iOS app (Xcode project), depends on FRNDSAPI
+Shared/FrndstrAPI/      # dependency-free SwiftPM package: Codable DTOs + endpoints
+Frndstr/                # iOS app (Xcode project), depends on FrndstrAPI
 docs/PLAN.md, docs/JOURNAL.md
 ```
 
 **Connectivity:** the onboarding screen takes `scheme://host:port` and validates it with `GET /api/health`. Info.plist sets `NSAllowsArbitraryLoads = YES` so plain HTTP works. The README recommends `tailscale serve` for free HTTPS.
 
-**Auth:** the admin creates invite codes via CLI (`docker compose exec frnds ./App invite`). The user enters code + name + password and gets a long-lived bearer token (stored hashed on the server, in the Keychain on the phone). The web viewer uses the same login with a cookie session.
+**Auth:** the admin creates invite codes via CLI (`docker compose exec frndstr ./App invite`). The user enters code + name + password and gets a long-lived bearer token (stored hashed on the server, in the Keychain on the phone). The web viewer uses the same login with a cookie session.
 
 **Data model (SQLite):**
 - `users(id, name, avatarPath, passwordHash, timezone, createdAt)`
@@ -88,7 +88,7 @@ docs/PLAN.md, docs/JOURNAL.md
 
 **Notifications (local for now):**
 - The server records events (new moment, comment, reaction, new post) → `GET /api/inbox?since=<cursor>`.
-- The app syncs on launch/foreground and via `BGAppRefreshTask`, then posts local notifications. Taps deep-link to `frnds://moment/{id}` and `frnds://post/{id}`.
+- The app syncs on launch/foreground and via `BGAppRefreshTask`, then posts local notifications. Taps deep-link to `frndstr://moment/{id}` and `frndstr://post/{id}`.
 - `GET /api/moment-time` → the app schedules today's and tomorrow's family moment reminder.
 - **Limitation:** iOS decides when background refresh runs, and never runs it after a force-quit. So "you got a photo" alerts can be delayed; scheduled reminders are always on time. APNs (M9) fixes the delay.
 
@@ -106,8 +106,8 @@ docs/PLAN.md, docs/JOURNAL.md
 Each milestone ends with something usable on a real phone and a JOURNAL entry.
 
 ### M0 — Foundations ✅ (2026-09-27)
-- [x] Repo layout: `server/`, `Shared/FRNDSAPI/`, `.gitignore`s
-- [x] `FRNDSAPI` package (health, auth DTOs), linked into the app
+- [x] Repo layout: `server/`, `Shared/FrndstrAPI/`, `.gitignore`s
+- [x] `FrndstrAPI` package (health, auth DTOs), linked into the app
 - [x] Vapor skeleton, Dockerfile, `docker-compose.yml`, `.env.example`, `GET /api/health`
 - [x] Users, invites, tokens + migrations; `invite` CLI command; register/login endpoints
 - [x] iOS: onboarding (URL + port, HTTP allowed), register/login, token in Keychain
@@ -214,7 +214,7 @@ Each milestone ends with something usable on a real phone and a JOURNAL entry.
 - [x] On-device Memories export (zip of the local archive via the share sheet)
 - [ ] Backup/restore docs (copy `./data`); admin CLI (reset password and remove user are already in the web dashboard)
 - [x] Public-repo prep (2026-09-29): personal names/places removed from code, tests and docs, fresh git history, MIT LICENSE, README with the "vibe coded → run it behind Tailscale, let your agent do a security check" note
-- [x] GitHub Actions: `ci.yml` (server + FRNDSAPI tests on Linux in `swift:6.2-noble` with ffmpeg/exiftool/zip), `docker.yml` (native amd64 + arm64 builds → multi-arch `ghcr.io/<owner>/frnds-server`, `latest` on main, semver on `v*` tags); compose can use it via `FRNDS_IMAGE`
+- [x] GitHub Actions: `ci.yml` (server + FrndstrAPI tests on Linux in `swift:6.2-noble` with ffmpeg/exiftool/zip), `docker.yml` (native amd64 + arm64 builds → multi-arch `ghcr.io/<owner>/frndstr-server`, `latest` on main, semver on `v*` tags); compose can use it via `FRNDSTR_IMAGE`
 - [x] App Store prerequisites: bundle ID `cloud.mallwitz.friendster`, `PrivacyInfo.xcprivacy` (no tracking, no collected data, UserDefaults reason CA92.1), `ITSAppUsesNonExemptEncryption = NO`
 - [ ] TestFlight distribution (App Store Connect account, app record, archive + upload)
 - [ ] Liquid Glass app icon made in Icon Composer: the standard SF Symbols camera glyph on the lime → citrus gradient, with light, dark, clear and tinted variants
@@ -234,8 +234,8 @@ Each milestone ends with something usable on a real phone and a JOURNAL entry.
 
 ## 6. Splitting the server into its own repo
 - `server/` is fully self-contained (own `Package.swift`, `Dockerfile`, compose file, README, `.gitignore` for `data/`, `.env`, `*.p8`) and never references `../`.
-- `Shared/FRNDSAPI/` has no dependencies.
-- To split: `git subtree split --prefix=server` → new repo (history preserved). `FRNDSAPI` becomes its own small repo, which the server and the app both depend on by git URL + version tag.
+- `Shared/FrndstrAPI/` has no dependencies.
+- To split: `git subtree split --prefix=server` → new repo (history preserved). `FrndstrAPI` becomes its own small repo, which the server and the app both depend on by git URL + version tag.
 - Secrets never go in git; only `.env.example` is committed.
 
 ## 7. Decisions
@@ -247,7 +247,7 @@ Each milestone ends with something usable on a real phone and a JOURNAL entry.
 - No E2E encryption: the server is trusted; TLS or Tailscale protects data in transit.
 - Feed: everyone on the server sees all posts.
 - Moments: unlimited, recipients picked per send, "post to see today's moments".
-- Shared DTOs: separate `FRNDSAPI` repo after the split.
+- Shared DTOs: separate `FrndstrAPI` repo after the split.
 - Location visibility (M3): only when the author turns on "Add location"; the place name is shown under the author's name, coordinates are used for saving to Photos.
 - Reactions (M2): one reaction per person per post (reacting again replaces it). **No separate "like"** (removed in M4 round): the reaction button is the only one.
 - Reaction palette: the server stores it; **admins edit it in the web dashboard** (moved out of the app in M7). The admin account is created on the web setup page at first start; `./App admin <user> [--revoke]` still works.

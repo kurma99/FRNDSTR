@@ -1,6 +1,6 @@
 @testable import App
 import Fluent
-import FRNDSAPI
+import FrndstrAPI
 import Testing
 import VaporTesting
 

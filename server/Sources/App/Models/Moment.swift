@@ -1,5 +1,5 @@
 import Fluent
-import FRNDSAPI
+import FrndstrAPI
 import Vapor
 
 /// A BeReal-style front+back photo sent to chosen friends. The server only relays it:

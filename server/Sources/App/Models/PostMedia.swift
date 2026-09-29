@@ -1,5 +1,5 @@
 import Fluent
-import FRNDSAPI
+import FrndstrAPI
 import Vapor
 
 /// One image or video. Uploaded first (without a post), then attached when the post is created.

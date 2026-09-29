@@ -1,4 +1,4 @@
-import FRNDSAPI
+import FrndstrAPI
 import Vapor
 
 func routes(_ app: Application) throws {

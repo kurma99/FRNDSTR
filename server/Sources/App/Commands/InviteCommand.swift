@@ -1,7 +1,7 @@
 import Fluent
 import Vapor
 
-/// `docker compose exec frnds ./App invite [--count 3]`
+/// `docker compose exec frndstr ./App invite [--count 3]`
 struct InviteCommand: AsyncCommand {
     struct Signature: CommandSignature {
         @Option(name: "count", short: "n", help: "Number of invite codes to create (default 1).")
@@ -22,7 +22,7 @@ struct InviteCommand: AsyncCommand {
     }
 }
 
-/// `docker compose exec frnds ./App admin <username> [--revoke]`
+/// `docker compose exec frndstr ./App admin <username> [--revoke]`
 struct AdminCommand: AsyncCommand {
     struct Signature: CommandSignature {
         @Argument(name: "username", help: "The account to change.")

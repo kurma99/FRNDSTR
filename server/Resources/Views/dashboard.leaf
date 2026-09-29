@@ -79,7 +79,7 @@
 
     <section id="invites">
       <h2>Invite codes</h2>
-      <p class="muted">Give a code to a family member. They open the FRNDS app, connect to <strong>#(serverAddress)</strong>, choose “Sign up” and enter it. Each code works once.</p>
+      <p class="muted">Give a code to a family member. They open the Frndstr app, connect to <strong>#(serverAddress)</strong>, choose “Sign up” and enter it. Each code works once.</p>
       <form method="post" action="/admin/invites" class="actions">
         <input type="hidden" name="csrf" value="#(csrf)">
         <select name="count" aria-label="How many">
