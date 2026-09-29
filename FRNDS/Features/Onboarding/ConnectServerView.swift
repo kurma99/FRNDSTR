@@ -19,7 +19,7 @@ struct ConnectServerView: View {
                 Spacer()
 
                 VStack(spacing: 6) {
-                    Wordmark(size: 60)
+                    Wordmark(size: 64)
                     Text("Your family's private feed")
                         .font(.headline)
                         .opacity(0.9)

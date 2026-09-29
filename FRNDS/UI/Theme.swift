@@ -60,13 +60,16 @@ enum Appearance: String, CaseIterable, Identifiable {
     }
 }
 
-/// Script wordmark, like Instagram's logo.
+/// Bold monospaced wordmark.
 struct Wordmark: View {
     var size: CGFloat = 30
 
     var body: some View {
-        Text("FRNDS")
-            .font(.custom("SnellRoundhand-Black", size: size, relativeTo: .title))
+        Text(verbatim: "FRNDS")
+            .font(.system(size: size, weight: .black, design: .monospaced))
+            .tracking(size * 0.04)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
             .accessibilityAddTraits(.isHeader)
     }
 }

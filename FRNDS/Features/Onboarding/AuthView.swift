@@ -29,10 +29,13 @@ struct AuthView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     VStack(spacing: 4) {
-                        Wordmark(size: 52)
-                        Text(app.instanceName)
-                            .font(.subheadline.weight(.semibold))
-                            .opacity(0.85)
+                        Wordmark(size: 64)
+                        // Only show the instance name when the admin gave it its own name.
+                        if app.instanceName.caseInsensitiveCompare("FRNDS") != .orderedSame {
+                            Text(app.instanceName)
+                                .font(.subheadline.weight(.semibold))
+                                .opacity(0.85)
+                        }
                     }
                     .foregroundStyle(Theme.ink)
                     .padding(.top, 60)
