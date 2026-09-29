@@ -66,7 +66,6 @@ struct MomentsView: View {
                         .buttonStyle(.glassProminent)
                         .tint(Theme.primary)
                         .foregroundStyle(Theme.onPrimary)
-                        .disabled(!hasFriends)
                         .accessibilityIdentifier("newMomentButton")
                 }
             }
@@ -100,7 +99,7 @@ struct MomentsView: View {
                     StoryBubble(user: me, title: String(localized: "Your moment"),
                                 state: model.sent.isEmpty ? .empty : .seen, showsAdd: true) {
                         if model.sent.isEmpty {
-                            if hasFriends { showCapture = true }
+                            showCapture = true
                         } else {
                             playing = StoryGroup(user: me, moments: model.sent.sorted { $0.createdAt > $1.createdAt })
                         }
@@ -140,7 +139,8 @@ struct MomentsView: View {
                     .font(.headline)
                 Text(model.hasPostedToday
                      ? "Tap + to share another whenever you like."
-                     : "Your friends' moments unlock once you share yours.")
+                     : hasFriends ? "Your friends' moments unlock once you share yours."
+                                  : "Until you add friends, your moments are just for you.")
                     .font(.subheadline)
                     // Grey is too faint on the yellow glass.
                     .foregroundStyle(.primary.opacity(0.75))
@@ -154,21 +154,22 @@ struct MomentsView: View {
                     .font(.footnote.weight(.medium))
                     .accessibilityIdentifier("momentTimeLabel")
                 }
-                if !hasFriends {
-                    NavigationLink {
-                        FriendsView(model: friends)
-                    } label: {
-                        Label("Add friends first", systemImage: "person.badge.plus")
-                    }
-                    .buttonStyle(.glass)
-                    .padding(.top, 4)
-                } else if !model.hasPostedToday {
+                if !model.hasPostedToday {
                     Button { showCapture = true } label: {
                         Label("Take your moment", systemImage: "camera.fill").font(.headline)
                     }
                     .primaryButtonStyle()
                     .padding(.top, 4)
                     .accessibilityIdentifier("takeMomentButton")
+                }
+                if !hasFriends {
+                    NavigationLink {
+                        FriendsView(model: friends)
+                    } label: {
+                        Label("Add friends", systemImage: "person.badge.plus")
+                    }
+                    .buttonStyle(.glass)
+                    .padding(.top, 4)
                 }
             }
             Spacer(minLength: 0)
@@ -394,8 +395,13 @@ private struct SentMomentCard: View {
             if let caption = moment.caption {
                 Text(caption).font(.caption).lineLimit(2)
             }
-            Label("Seen by \(viewed) of \(recipients.count)", systemImage: "eye")
-                .font(.caption.weight(.medium))
+            if recipients.isEmpty {
+                Label("Just for you", systemImage: "person.fill")
+                    .font(.caption.weight(.medium))
+            } else {
+                Label("Seen by \(viewed) of \(recipients.count)", systemImage: "eye")
+                    .font(.caption.weight(.medium))
+            }
             if !screenshotters.isEmpty {
                 Label("\(screenshotters.formatted(.list(type: .and))) took a screenshot", systemImage: "camera.viewfinder")
                     .font(.caption)

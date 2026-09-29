@@ -13,11 +13,22 @@ nonisolated struct CloudflareAccess: Equatable, Sendable {
 
     /// Returns nil unless both parts are filled in.
     init?(clientID: String, clientSecret: String) {
-        let id = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
-        let secret = clientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
+        let id = Self.cleaned(clientID, header: "CF-Access-Client-Id")
+        let secret = Self.cleaned(clientSecret, header: "CF-Access-Client-Secret")
         guard !id.isEmpty, !secret.isEmpty else { return nil }
         self.clientID = id
         self.clientSecret = secret
+    }
+
+    /// Cloudflare shows the token as header lines, so people often paste `CF-Access-Client-Id: abc.access`
+    /// (sometimes quoted) instead of just the value. Strips that down to the value.
+    private static func cleaned(_ input: String, header: String) -> String {
+        let quotes = CharacterSet(charactersIn: "\"'")
+        var text = input.trimmingCharacters(in: .whitespacesAndNewlines.union(quotes))
+        if let range = text.range(of: header + ":", options: [.caseInsensitive, .anchored]) {
+            text = String(text[range.upperBound...])
+        }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines.union(quotes))
     }
 
     // MARK: Storage

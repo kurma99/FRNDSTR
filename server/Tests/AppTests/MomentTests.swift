@@ -172,13 +172,41 @@ struct MomentTests {
         }
     }
 
-    @Test func rejectsNonJPEGAndEmptyRecipients() async throws {
+    @Test func rejectsNonJPEG() async throws {
         try await withTestApp { app, _ in
             let anna = try await signUp(app, username: "anna")
             let ben = try await signUp(app, username: "ben")
             try await befriend(app, anna, ben)
             #expect(try await sendMoment(app, token: anna, jpeg: Data("hello".utf8), to: [try await userID(app, ben)]).status == .unsupportedMediaType)
-            #expect(try await sendMoment(app, token: anna, jpeg: Data([0xFF, 0xD8, 0xFF]), to: []).status == .badRequest)
+        }
+    }
+
+    @Test func momentWithoutFriendsIsJustForYou() async throws {
+        try await withTestApp { app, dir in
+            let anna = try await signUp(app, username: "anna")
+            let ben = try await signUp(app, username: "ben")
+            let jpeg = try await makeSample("s.jpg", in: dir, args: ["-f", "lavfi", "-i", "color=blue:s=48x64", "-frames:v", "1"])
+            let composite = try await upload(app, token: anna, data: jpeg, type: .jpeg)
+
+            // Anna has no friends yet, but can still take one.
+            let moment = try decoded(MomentDTO.self, try await sendMoment(
+                app, token: anna, jpeg: jpeg, to: [], caption: "Nur für mich", postMediaID: composite.id))
+            #expect(moment.recipients?.isEmpty == true)
+
+            let annaFeed = try decoded(MomentsFeed.self, try await request(app, .GET, API.Path.moments, token: anna))
+            #expect(annaFeed.hasPostedToday)
+            #expect(annaFeed.sent.map(\.id) == [moment.id])
+            #expect(try await request(app, .GET, "\(API.Path.moment(moment.id))/back", token: anna).status == .ok)
+
+            // Nobody else sees it or gets notified.
+            #expect(try decoded(MomentsFeed.self, try await request(app, .GET, API.Path.moments, token: ben)).received.isEmpty)
+            #expect(try await request(app, .GET, "\(API.Path.moment(moment.id))/back", token: ben).status == .notFound)
+            #expect(try await Event.query(on: app.db).count() == 0)
+
+            // It still becomes a post when it's over, if chosen.
+            try await MomentJanitor.purge(on: app, now: .now.addingTimeInterval(API.Moments.lifetime + 60))
+            let posts = try decoded(FeedPage.self, try await request(app, .GET, API.Path.posts, token: ben)).posts
+            #expect(posts.map(\.caption) == ["Nur für mich"])
         }
     }
 }

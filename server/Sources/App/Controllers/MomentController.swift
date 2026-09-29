@@ -34,8 +34,9 @@ struct MomentController: RouteCollection {
         guard (caption?.count ?? 0) <= API.Moments.maxCaptionLength else {
             throw Abort(.badRequest, reason: "Caption is too long.")
         }
+        // No recipients is fine: a moment just for yourself (e.g. before you have friends).
+        // It still counts as today's moment and can become a post when it's over.
         let recipientIDs = Array(Set(body.recipientIDs))
-        guard !recipientIDs.isEmpty else { throw Abort(.badRequest, reason: "Choose at least one friend.") }
 
         // Only accepted friends may receive it.
         let friendIDs = try await Self.friendIDs(of: senderID, on: req.db)

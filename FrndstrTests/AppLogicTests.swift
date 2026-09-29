@@ -28,7 +28,18 @@ import Testing
         #expect(access.headers == ["CF-Access-Client-Id": "abc.access", "CF-Access-Client-Secret": "s3cret"])
     }
 
-    @Test(arguments: [("", "secret"), ("id", "  "), ("", "")])
+    @Test(arguments: [
+        ("CF-Access-Client-Id: abc.access", "CF-Access-Client-Secret: s3cret"),
+        ("cf-access-client-id:abc.access", "cf-access-client-secret:s3cret"),
+        ("\"CF-Access-Client-Id: abc.access\"", " 'CF-Access-Client-Secret: s3cret' \n"),
+    ])
+    func stripsPastedHeaderNames(id: String, secret: String) throws {
+        let access = try #require(CloudflareAccess(clientID: id, clientSecret: secret))
+        #expect(access.clientID == "abc.access")
+        #expect(access.clientSecret == "s3cret")
+    }
+
+    @Test(arguments: [("", "secret"), ("id", "  "), ("", ""), ("CF-Access-Client-Id:", "secret")])
     func needsBothParts(id: String, secret: String) {
         #expect(CloudflareAccess(clientID: id, clientSecret: secret) == nil)
     }

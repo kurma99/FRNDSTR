@@ -75,6 +75,8 @@ struct MomentSendView: View {
     private var recipients: [UserDTO] {
         options.audience == .allFriends ? allFriends : allFriends.filter { options.selected.contains($0.id) }
     }
+    /// Without friends the moment is kept just for yourself (Memories, and optionally Photos or a post).
+    private var isJustForMe: Bool { friends.hasLoaded && allFriends.isEmpty }
 
     var body: some View {
         NavigationStack {
@@ -137,18 +139,20 @@ struct MomentSendView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Share with").font(.headline)
 
-            Picker("Share with", selection: $options.audience.animation(.snappy)) {
-                ForEach(MomentSettings.Audience.allCases) { option in
-                    Text(option.title).tag(option)
+            if !isJustForMe {
+                Picker("Share with", selection: $options.audience.animation(.snappy)) {
+                    ForEach(MomentSettings.Audience.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("audiencePicker")
             }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("audiencePicker")
 
             if !friends.hasLoaded {
                 ProgressView().frame(maxWidth: .infinity)
-            } else if allFriends.isEmpty {
-                Text("You don't have friends yet. Add family members in Friends to send them moments.")
+            } else if isJustForMe {
+                Text("You don't have friends yet, so this moment is just for you. It's kept in your Memories. Add family members in Friends to send them moments.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else if options.audience == .allFriends {
@@ -208,7 +212,8 @@ struct MomentSendView: View {
             Toggle(isOn: $options.saveToPhotos) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Save to my Photos")
-                    Text("Your friends can't save it. It disappears for them after 24 hours.")
+                    Text(isJustForMe ? "Also keeps a copy in your photo library."
+                                     : "Your friends can't save it. It disappears for them after 24 hours.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -225,8 +230,10 @@ struct MomentSendView: View {
             Group {
                 if isSending {
                     ProgressView()
+                } else if isJustForMe {
+                    Text("Save moment")
                 } else if recipients.isEmpty {
-                    Text(options.audience == .selectedFriends ? "Choose who gets it" : "No friends yet")
+                    Text("Choose who gets it")
                 } else if options.audience == .allFriends {
                     Text("Send to all friends")
                 } else {
@@ -239,7 +246,7 @@ struct MomentSendView: View {
         }
         .primaryButtonStyle()
         .controlSize(.large)
-        .disabled(recipients.isEmpty || isSending)
+        .disabled((recipients.isEmpty && !isJustForMe) || isSending)
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, 8)
