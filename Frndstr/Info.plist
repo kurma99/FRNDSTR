@@ -4,7 +4,7 @@
 <dict>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>cloud.mallwitz.friendster.refresh</string>
+		<string>cloud.mallwitz.frndstr.refresh</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>

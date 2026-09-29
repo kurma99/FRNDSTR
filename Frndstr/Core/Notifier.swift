@@ -117,7 +117,7 @@ struct NotificationText: Equatable {
 @MainActor
 final class Notifier: NSObject {
     static let shared = Notifier()
-    static let refreshTaskID = "cloud.mallwitz.friendster.refresh"
+    static let refreshTaskID = "cloud.mallwitz.frndstr.refresh"
 
     private let center = UNUserNotificationCenter.current()
     /// Set by the app so notification taps can route.
