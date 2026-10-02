@@ -11,6 +11,8 @@ nonisolated struct ArchivedMoment: Codable, Identifiable, Hashable, Sendable {
     var caption: String?
     var recipientNames: [String]
     var layout: MomentLayout?
+    /// Where it was taken, if location was on. Missing in moments archived before locations existed.
+    var location: PostLocation?
 }
 
 nonisolated final class MomentArchive: Sendable {

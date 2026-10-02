@@ -23,3 +23,20 @@ import Testing
     let many = ["😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊", "😇"]
     #expect(API.normalizedPalette(many) == nil)
 }
+
+@Test func momentLocationIsOptionalAndRoundTrips() throws {
+    // Older clients send no location; older servers return none.
+    let request = try API.makeDecoder().decode(CreateMomentRequest.self,
+                                               from: Data(#"{"recipientIDs":[]}"#.utf8))
+    #expect(request.location == nil)
+
+    let user = UserDTO(id: UUID(), username: "anna", displayName: "Anna",
+                       createdAt: Date(timeIntervalSince1970: 1_700_000_000))
+    let moment = MomentDTO(id: UUID(), sender: user, caption: nil, createdAt: user.createdAt,
+                           expiresAt: user.createdAt.addingTimeInterval(86_400), isLocked: false,
+                           backPath: "/b", frontPath: "/f", recipients: nil,
+                           location: PostLocation(latitude: 53.55, longitude: 9.99, placeName: "Hamburg"))
+    let decoded = try API.makeDecoder().decode(MomentDTO.self, from: API.makeEncoder().encode(moment))
+    #expect(decoded == moment)
+    #expect(decoded.location?.placeName == "Hamburg")
+}

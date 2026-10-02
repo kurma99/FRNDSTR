@@ -4,6 +4,25 @@ Newest entries on top. For each session: what was done, decisions made (and why)
 
 ---
 
+## 2026-10-02 — Moments polish before TestFlight
+
+**Done**
+- The shared moment time on the Moments card is blurred until tapped.
+- Moments can carry a location, all the way through: DTOs, server (new `AddMomentLocation` migration), send step, Memories archive, story player, cards, Photos save and takeout. The post a moment turns into keeps the place.
+- Memories calendar: oldest month at the top, newest at the bottom, opens at the bottom.
+- The location permission text now mentions moments too, since App Review checks that it matches what the app does.
+
+**Decisions**
+- **Moment location is on by default** (posts stay opt-in). Moments are only for friends, and "where were you" is part of the BeReal-style moment. It can be switched off per moment or in Settings › Moment defaults.
+- **The place stays hidden while a moment is locked**, just like the photos, so it can't give anything away before you've posted.
+- **The lookup starts as soon as the moment flow opens**, so the place is usually ready by the send step. Sending waits for a lookup that is still running (at most the 15 s location timeout).
+- **Memories read like a timeline** (top = oldest): scrolling up goes back in time, which matches the calendar inside each month.
+
+**Notes**
+- `swift test` inside `~/Documents` fails to codesign the test bundle ("resource fork, Finder information, or similar detritus not allowed"). Use `--scratch-path /tmp/…`.
+
+---
+
 ## 2026-09-29 — Getting ready for GitHub and TestFlight
 
 **Done**

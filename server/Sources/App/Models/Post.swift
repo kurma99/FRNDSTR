@@ -2,6 +2,13 @@ import Fluent
 import FrndstrAPI
 import Vapor
 
+extension PostLocation {
+    /// Coordinates in range and a reasonably short place name (posts and moments).
+    var isValid: Bool {
+        (-90...90).contains(latitude) && (-180...180).contains(longitude) && (placeName?.count ?? 0) <= 120
+    }
+}
+
 final class Post: Model, @unchecked Sendable {
     static let schema = "posts"
 

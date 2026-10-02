@@ -18,6 +18,14 @@ final class Moment: Model, @unchecked Sendable {
     @OptionalField(key: "inset_size") var insetSize: Double?
     /// Unattached composite that becomes a post when the moment expires (opt-in).
     @OptionalField(key: "post_media_id") var postMediaID: UUID?
+    @OptionalField(key: "latitude") var latitude: Double?
+    @OptionalField(key: "longitude") var longitude: Double?
+    @OptionalField(key: "place_name") var placeName: String?
+
+    var location: PostLocation? {
+        guard let latitude, let longitude else { return nil }
+        return PostLocation(latitude: latitude, longitude: longitude, placeName: placeName)
+    }
 
     var layout: MomentLayout {
         MomentLayout(insetCorner: insetCorner.flatMap(MomentLayout.Corner.init(rawValue:)) ?? .topLeading,
@@ -104,6 +112,20 @@ struct AddMomentInsetSize: AsyncMigration {
     }
 }
 
+struct AddMomentLocation: AsyncMigration {
+    func prepare(on database: any Database) async throws {
+        try await database.schema(Moment.schema).field("latitude", .double).update()
+        try await database.schema(Moment.schema).field("longitude", .double).update()
+        try await database.schema(Moment.schema).field("place_name", .string).update()
+    }
+
+    func revert(on database: any Database) async throws {
+        for field in ["latitude", "longitude", "place_name"] {
+            try await database.schema(Moment.schema).deleteField(.string(field)).update()
+        }
+    }
+}
+
 /// Deletes expired moments (rows + files) and publishes the opted-in ones as posts.
 /// Runs at startup and every 10 minutes.
 struct MomentJanitor: LifecycleHandler {
@@ -158,6 +180,9 @@ struct MomentJanitor: LifecycleHandler {
         try await db.transaction { db in
             let post = Post(authorID: moment.$sender.id, caption: moment.caption)
             post.takenAt = takenAt
+            post.latitude = moment.latitude
+            post.longitude = moment.longitude
+            post.placeName = moment.placeName
             try await post.create(on: db)
             let postID = try post.requireID()
             try await Post.query(on: db).filter(\.$id == postID).set(\.$createdAt, to: takenAt).update()

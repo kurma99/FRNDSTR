@@ -175,13 +175,20 @@ Each milestone ends with something usable on a real phone and a JOURNAL entry.
 - [ ] ~~Remove "New post" from the bottom tab bar~~ — dropped (2026-09-28): "New post" stays in the tab bar
 - [ ] Memories calendar: days with more than one moment show a badge with the number of moments. M4.1 may already do this ("newest + count") — first check that it's there with a test (e.g. a day with 3 archived moments renders a "3" badge) and only change code if it isn't
 - [ ] New post: the "Add location" toggle doesn't follow the location default in Settings — it should start on/off (and fetch the location) based on that setting
-- [ ] Moments: add the same location option (default from Settings, can be turned off per moment)
+- [x] Moments: add the same location option (default from Settings, can be turned off per moment). Done 2026-10-02: **on by default**; the place is shown to recipients only once the moment is unlocked, kept in Memories, written into Photos saves and the takeout, and carried into the post if the moment becomes one
 - [ ] Moments: remove the flip options ("Flip selfie" / "Flip back" in the edit step and the flip-selfie default in Settings › Moment defaults); keep only the switch-position button
 - [ ] Moments UI: make the Moments screens (tab, capture, edit, send, viewer) match the look of the rest of the app — same `Theme` colors, fonts, spacing, card/list styles and toolbar buttons
 - [ ] "You shared your moment today" / "Time for your moment" card (`MomentsView`): keep the yellow, but rebuild it with Liquid Glass (glass effect tinted yellow, glass buttons) so it stops looking like BeReal or a stock Google-style card. Look up the current Liquid Glass APIs (`glassEffect`, `GlassEffectContainer`, `.buttonStyle(.glass)`) before building it
 - [ ] Rename the "Your moments" section in the Moments tab to "Today's moments"
 - [ ] Profiles: make them look more like Apple's own apps. Suggested direction (to confirm with the user): large centered round avatar with name and username below it (like the Apple Account / Contacts card), stats and actions as Liquid Glass buttons, the rest in an inset-grouped list, system fonts and SF Symbols
 - **Done when:** the tab bar still has "New post" and the first tab is called "Feed", a test proves a day with 3 moments shows a "3" badge, new posts and moments start with location on when the default is on, the moment editor has no flip buttons, the moment status card uses yellow-tinted Liquid Glass, the section says "Today's moments", and the Moments and Profile screens look like the rest of the app.
+
+### M6.3 — Moments polish ✅ (2026-10-02)
+- [x] The shared daily moment time on the Moments status card is blurred until you tap it (tap again to hide), so it stays a surprise; VoiceOver only reads it once revealed
+- [x] Moment location (see M6.1): "Add location" in the send step and Settings › Moment defaults, on by default. Server: `latitude`/`longitude`/`place_name` on `moments`, same validation as posts
+- [x] Memories calendar runs chronologically: oldest month at the top, newest at the bottom, and it opens scrolled to the newest month
+- **Done when:** the moment time is hidden until tapped, a friend sees where a moment was taken after unlocking it, and Memories reads top to bottom in time order.
+  - Verified by tests (server: location hidden while locked, invalid coordinates rejected, carried into the published post; API: old payloads without location still decode; app: old archive entries still load, month order) and in the simulator with two accounts.
 
 ### M6.2 — Feed actions, moment highlights & gestures ✅ (2026-09-28, verified in the simulator)
 **Feed / posts**
@@ -215,8 +222,8 @@ Each milestone ends with something usable on a real phone and a JOURNAL entry.
 - [ ] Backup/restore docs (copy `./data`); admin CLI (reset password and remove user are already in the web dashboard)
 - [x] Public-repo prep (2026-09-29): personal names/places removed from code, tests and docs, fresh git history, MIT LICENSE, README with the "vibe coded → run it behind Tailscale, let your agent do a security check" note
 - [x] GitHub Actions: `ci.yml` (server + FrndstrAPI tests on Linux in `swift:6.2-noble` with ffmpeg/exiftool/zip), `docker.yml` (native amd64 + arm64 builds → multi-arch `ghcr.io/<owner>/frndstr-server`, `latest` on main, semver on `v*` tags); compose can use it via `FRNDSTR_IMAGE`
-- [x] App Store prerequisites: bundle ID `cloud.mallwitz.friendster`, `PrivacyInfo.xcprivacy` (no tracking, no collected data, UserDefaults reason CA92.1), `ITSAppUsesNonExemptEncryption = NO`
-- [ ] TestFlight distribution (App Store Connect account, app record, archive + upload)
+- [x] App Store prerequisites: bundle ID `cloud.mallwitz.frndstr` (iPhone only), `PrivacyInfo.xcprivacy` (no tracking, no collected data, UserDefaults reason CA92.1), `ITSAppUsesNonExemptEncryption = NO`
+- [ ] TestFlight distribution: developer account enrolled (2026-10-02); still to do: app record in App Store Connect, archive + upload from Xcode, internal testing group
 - [ ] Liquid Glass app icon made in Icon Composer: the standard SF Symbols camera glyph on the lime → citrus gradient, with light, dark, clear and tinted variants
 - **Done when:** a user can export everything they own, and restore from backup has been tested.
 

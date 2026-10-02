@@ -36,7 +36,8 @@ private func befriend(_ app: Application, _ a: String, _ b: String) async throws
 /// Multipart upload of a moment (two JPEGs + JSON payload).
 private func sendMoment(_ app: Application, token: String, jpeg: Data, to recipients: [UUID],
                         caption: String? = nil, layout: MomentLayout? = nil,
-                        postMediaID: UUID? = nil) async throws -> (status: HTTPStatus, body: Data) {
+                        postMediaID: UUID? = nil,
+                        location: PostLocation? = nil) async throws -> (status: HTTPStatus, body: Data) {
     let boundary = "Boundary-\(UUID().uuidString)"
     var body = Data()
     func part(_ name: String, filename: String?, type: String, data: Data) {
@@ -50,7 +51,8 @@ private func sendMoment(_ app: Application, token: String, jpeg: Data, to recipi
     part("front", filename: "front.jpg", type: "image/jpeg", data: jpeg)
     part("payload", filename: nil, type: "application/json",
          data: try API.makeEncoder().encode(CreateMomentRequest(caption: caption, recipientIDs: recipients,
-                                                                layout: layout, postMediaID: postMediaID)))
+                                                                layout: layout, postMediaID: postMediaID,
+                                                                location: location)))
     body.append(Data("--\(boundary)--\r\n".utf8))
 
     var result: (HTTPStatus, Data) = (.internalServerError, Data())
@@ -157,6 +159,38 @@ struct MomentTests {
             #expect(post.media.map(\.id) == [composite.id])
             #expect(abs(post.createdAt.timeIntervalSince(moment.createdAt)) < 2)
             #expect(abs((post.takenAt ?? .distantPast).timeIntervalSince(moment.createdAt)) < 2)
+        }
+    }
+
+    @Test func locationIsHiddenWhileLockedAndCarriedIntoThePost() async throws {
+        try await withTestApp { app, dir in
+            let anna = try await signUp(app, username: "anna")
+            let ben = try await signUp(app, username: "ben")
+            try await befriend(app, anna, ben)
+            let benID = try await userID(app, ben)
+            let jpeg = try await makeSample("l.jpg", in: dir, args: ["-f", "lavfi", "-i", "color=orange:s=48x64", "-frames:v", "1"])
+            let composite = try await upload(app, token: anna, data: jpeg, type: .jpeg)
+            let place = PostLocation(latitude: 50.73, longitude: 7.10, placeName: "Bonn, Germany")
+
+            // Out-of-range coordinates are rejected.
+            let invalid = PostLocation(latitude: 120, longitude: 7.10, placeName: nil)
+            #expect(try await sendMoment(app, token: anna, jpeg: jpeg, to: [benID], location: invalid).status == .badRequest)
+
+            let moment = try decoded(MomentDTO.self, try await sendMoment(
+                app, token: anna, jpeg: jpeg, to: [benID], postMediaID: composite.id, location: place))
+            #expect(moment.location == place)
+
+            // Locked for Ben → no place either.
+            var received = try decoded(MomentsFeed.self, try await request(app, .GET, API.Path.moments, token: ben)).received[0]
+            #expect(received.isLocked && received.location == nil)
+
+            _ = try decoded(MomentDTO.self, try await sendMoment(app, token: ben, jpeg: jpeg, to: [try await userID(app, anna)]))
+            received = try decoded(MomentsFeed.self, try await request(app, .GET, API.Path.moments, token: ben)).received[0]
+            #expect(received.location == place)
+
+            try await MomentJanitor.purge(on: app, now: .now.addingTimeInterval(API.Moments.lifetime + 60))
+            let post = try #require(try decoded(FeedPage.self, try await request(app, .GET, API.Path.posts, token: ben)).posts.first)
+            #expect(post.location == place)
         }
     }
 

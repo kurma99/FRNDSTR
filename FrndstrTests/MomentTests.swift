@@ -67,6 +67,29 @@ private func solidImage(_ color: UIColor, size: CGSize) -> UIImage {
         try archive.delete(older.id)
         #expect(archive.all() == [newer])
     }
+
+    @Test func locationIsKeptAndOldEntriesStillLoad() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "archive-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let archive = MomentArchive(root: root)
+
+        let place = PostLocation(latitude: 50.73, longitude: 7.10, placeName: "Bonn, Germany")
+        let tagged = ArchivedMoment(id: UUID(), createdAt: Date(timeIntervalSince1970: 2_000), caption: nil,
+                                    recipientNames: [], location: place)
+        try archive.save(tagged, back: Data([1]), front: Data([2]), composite: Data([3]))
+
+        // A moment.json written before locations existed.
+        let oldID = UUID()
+        let oldFolder = root.appending(path: oldID.uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: oldFolder, withIntermediateDirectories: true)
+        try Data(#"{"id":"\#(oldID.uuidString)","createdAt":"1970-01-01T00:16:40Z","recipientNames":["Anna"]}"#.utf8)
+            .write(to: oldFolder.appending(path: "moment.json"))
+
+        let all = archive.all()
+        #expect(all.map(\.id) == [tagged.id, oldID])
+        #expect(all[0].location == place)
+        #expect(all[1].location == nil)
+    }
 }
 
 @MainActor
@@ -146,7 +169,7 @@ private func solidImage(_ color: UIColor, size: CGSize) -> UIImage {
         #expect(calendar.weekdaySymbols == ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"])
     }
 
-    @Test func groupsByMonthNewestFirstWithCorrectOffsets() throws {
+    @Test func groupsByMonthOldestFirstWithCorrectOffsets() throws {
         let calendar = MemoriesCalendar(timeZone: berlin, locale: Locale(identifier: "en_US"))
         let augustMorning = memory(date(2026, 8, 15, 8))
         let augustEvening = memory(date(2026, 8, 15, 21))
@@ -154,7 +177,7 @@ private func solidImage(_ color: UIColor, size: CGSize) -> UIImage {
         let months = calendar.months(for: [augustEvening, september, augustMorning])
 
         #expect(months.count == 2)
-        let sep = months[0], aug = months[1]
+        let aug = months[0], sep = months[1]
         // 1 Sep 2026 is a Tuesday → one blank (Monday) before it; 1 Aug 2026 is a Saturday → five blanks.
         #expect(sep.leadingBlanks == 1)
         #expect(aug.leadingBlanks == 5)

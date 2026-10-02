@@ -32,6 +32,7 @@ func configure(_ app: Application, config: AppConfig = .fromEnvironment()) async
     app.migrations.add(CreateEvents())
     app.migrations.add(CreateMomentDays())
     app.migrations.add(AddMomentInsetSize())
+    app.migrations.add(AddMomentLocation())
     app.migrations.add(CreateHighlights())
 
     // Same ISO-8601 dates as the app.

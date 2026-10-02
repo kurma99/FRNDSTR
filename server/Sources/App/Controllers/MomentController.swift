@@ -43,6 +43,9 @@ struct MomentController: RouteCollection {
         guard Set(recipientIDs).isSubset(of: friendIDs) else {
             throw Abort(.badRequest, reason: "Moments can only be sent to friends.")
         }
+        if let location = body.location, !location.isValid {
+            throw Abort(.badRequest, reason: "Invalid location.")
+        }
         if let mediaID = body.postMediaID {
             guard let media = try await PostMedia.find(mediaID, on: req.db),
                   media.$owner.id == senderID, media.$post.id == nil, media.kind == .image
@@ -66,6 +69,9 @@ struct MomentController: RouteCollection {
         moment.swapped = body.layout?.swapped
         moment.insetSize = body.layout?.insetSize.map { MomentLayout(insetSize: $0).resolvedInsetSize }
         moment.postMediaID = body.postMediaID
+        moment.latitude = body.location?.latitude
+        moment.longitude = body.location?.longitude
+        moment.placeName = body.location?.placeName
         let dayKey = ServerDay(timeZone: req.application.appConfig.timeZone).key(for: .now)
         try await req.db.transaction { db in
             try await moment.create(on: db)
@@ -219,7 +225,9 @@ struct MomentController: RouteCollection {
             frontPath: locked ? nil : "\(API.Path.moment(id))/front",
             recipients: recipients,
             layout: moment.layout,
-            becomesPost: recipients == nil ? nil : moment.postMediaID != nil
+            becomesPost: recipients == nil ? nil : moment.postMediaID != nil,
+            // Like the photos, the place stays hidden until the viewer has posted.
+            location: locked ? nil : moment.location
         )
     }
 

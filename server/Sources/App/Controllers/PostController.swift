@@ -72,10 +72,8 @@ struct PostController: RouteCollection {
         else {
             throw Abort(.badRequest, reason: "A post needs 1–\(API.Limits.maxMediaPerPost) photos or videos.")
         }
-        if let location = body.location {
-            guard (-90...90).contains(location.latitude), (-180...180).contains(location.longitude),
-                  (location.placeName?.count ?? 0) <= 120
-            else { throw Abort(.badRequest, reason: "Invalid location.") }
+        if let location = body.location, !location.isValid {
+            throw Abort(.badRequest, reason: "Invalid location.")
         }
 
         let postID = try await req.db.transaction { db -> UUID in

@@ -9,6 +9,8 @@ enum MomentSettings {
     static let mirrorSelfieKey = "moments.mirrorSelfie"
     static let insetCornerKey = "moments.insetCorner"
     static let lastSelectedKey = "moments.lastSelectedFriends"
+    /// Tag new moments with the current place. On unless turned off in Settings.
+    static let addLocationKey = "moments.addLocation"
 
     enum Audience: String, CaseIterable, Identifiable {
         case allFriends, selectedFriends

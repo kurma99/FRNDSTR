@@ -387,12 +387,16 @@ public struct CreateMomentRequest: Codable, Sendable, Equatable {
     /// Opt-in: an already uploaded composite (`POST /api/media`) that the server publishes as a post
     /// once the moment expires, dated to when the moment was taken.
     public var postMediaID: UUID?
+    /// Opt-in place where the moment was taken.
+    public var location: PostLocation?
 
-    public init(caption: String?, recipientIDs: [UUID], layout: MomentLayout? = nil, postMediaID: UUID? = nil) {
+    public init(caption: String?, recipientIDs: [UUID], layout: MomentLayout? = nil, postMediaID: UUID? = nil,
+                location: PostLocation? = nil) {
         self.caption = caption
         self.recipientIDs = recipientIDs
         self.layout = layout
         self.postMediaID = postMediaID
+        self.location = location
     }
 }
 
@@ -425,10 +429,12 @@ public struct MomentDTO: Codable, Sendable, Equatable, Hashable, Identifiable {
     public var layout: MomentLayout?
     /// Sender only: whether it becomes a post when it expires.
     public var becomesPost: Bool?
+    /// Where it was taken, if the sender added it. Not sent while the moment is locked.
+    public var location: PostLocation?
 
     public init(id: UUID, sender: UserDTO, caption: String?, createdAt: Date, expiresAt: Date, isLocked: Bool,
                 backPath: String?, frontPath: String?, recipients: [MomentRecipientDTO]?,
-                layout: MomentLayout? = nil, becomesPost: Bool? = nil) {
+                layout: MomentLayout? = nil, becomesPost: Bool? = nil, location: PostLocation? = nil) {
         self.id = id
         self.sender = sender
         self.caption = caption
@@ -440,6 +446,7 @@ public struct MomentDTO: Codable, Sendable, Equatable, Hashable, Identifiable {
         self.recipients = recipients
         self.layout = layout
         self.becomesPost = becomesPost
+        self.location = location
     }
 }
 

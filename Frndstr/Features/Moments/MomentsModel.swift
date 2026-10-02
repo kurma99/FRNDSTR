@@ -70,8 +70,8 @@ final class MomentsModel {
 
     /// Keeps a local copy first, then uploads. With `shareAsPost` the composite is uploaded too,
     /// but the server only publishes it as a post once the moment has expired.
-    func send(_ moment: EditedMoment, to recipients: [UserDTO], shareAsPost: Bool, saveToPhotos: Bool,
-              using app: AppModel) async throws -> SendResult {
+    func send(_ moment: EditedMoment, to recipients: [UserDTO], location: PostLocation?, shareAsPost: Bool,
+              saveToPhotos: Bool, using app: AppModel) async throws -> SendResult {
         guard let client = app.client, let me = app.currentUser else { throw APIError.invalidResponse }
         let caption = moment.caption.trimmingCharacters(in: .whitespacesAndNewlines)
         let files = await Self.prepare(back: moment.back, front: moment.front, layout: moment.layout)
@@ -80,7 +80,8 @@ final class MomentsModel {
         do {
             try MomentArchive.forUser(me.id).save(
                 ArchivedMoment(id: UUID(), createdAt: .now, caption: caption.isEmpty ? nil : caption,
-                               recipientNames: recipients.map(\.displayName), layout: moment.layout),
+                               recipientNames: recipients.map(\.displayName), layout: moment.layout,
+                               location: location),
                 back: files.back, front: files.front, composite: files.composite)
         } catch {
             warnings.append(String(localized: "Your copy couldn't be kept on this iPhone."))
@@ -96,7 +97,7 @@ final class MomentsModel {
             }
             _ = try await client.sendMoment(back: files.back, front: files.front, request: CreateMomentRequest(
                 caption: caption.isEmpty ? nil : caption, recipientIDs: recipients.map(\.id),
-                layout: moment.layout, postMediaID: postMediaID))
+                layout: moment.layout, postMediaID: postMediaID, location: location))
         } catch {
             app.handle(error)
             throw error
@@ -105,7 +106,7 @@ final class MomentsModel {
         if saveToPhotos {
             do {
                 try await PhotoSaver.saveImage(files.composite, metadata: SaveMetadata(
-                    caption: caption.isEmpty ? nil : caption, location: nil, date: .now))
+                    caption: caption.isEmpty ? nil : caption, location: location, date: .now))
             } catch {
                 warnings.append(error.localizedDescription)
             }

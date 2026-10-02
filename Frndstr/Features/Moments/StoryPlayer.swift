@@ -166,6 +166,7 @@ struct StoryHeader: View {
     let date: Date
     var title: String?
     var caption: String?
+    var place: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -179,6 +180,11 @@ struct StoryHeader: View {
                     .font(.headline)
                 Text(date, format: .dateTime.hour().minute())
                     .font(.subheadline)
+                    .opacity(0.8)
+            }
+            if let place {
+                Label(place, systemImage: "mappin")
+                    .font(.footnote)
                     .opacity(0.8)
             }
             if let caption {
@@ -209,7 +215,8 @@ struct LiveMomentsPlayer: View {
             }
         } header: { moment in
             StoryHeader(date: moment.createdAt, title: moment.sender.displayName,
-                        caption: moment.isLocked ? nil : moment.caption)
+                        caption: moment.isLocked ? nil : moment.caption,
+                        place: moment.isLocked ? nil : moment.location?.placeName)
         }
         .task {
             for await _ in NotificationCenter.default.notifications(named: UIApplication.userDidTakeScreenshotNotification) {

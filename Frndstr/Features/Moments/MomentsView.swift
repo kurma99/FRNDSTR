@@ -15,6 +15,7 @@ struct MomentsView: View {
     @State private var playing: StoryGroup?
     /// Unlocked received moments currently on screen (for screenshot reports).
     @State private var visibleIDs: Set<UUID> = []
+    @State private var isTimeRevealed = false
 
     /// One person's live moments, newest first.
     struct StoryGroup: Identifiable {
@@ -126,6 +127,35 @@ struct MomentsView: View {
 
     // MARK: Sections
 
+    /// The shared moment time stays blurred (it's meant to be a surprise) until tapped.
+    private func momentTimeLabel(_ time: Date) -> some View {
+        let formatted = time.formatted(date: .omitted, time: .shortened)
+        return Button {
+            withAnimation(.smooth) { isTimeRevealed.toggle() }
+        } label: {
+            Label {
+                HStack(spacing: 4) {
+                    Text(time > .now ? "Today's moment time:" : "Today's moment time was")
+                    Text(formatted)
+                        .blur(radius: isTimeRevealed ? 0 : 6)
+                    if !isTimeRevealed {
+                        Image(systemName: "eye")
+                    }
+                }
+            } icon: {
+                Image(systemName: "bell.badge")
+            }
+            .font(.footnote.weight(.medium))
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        // Replaces the visible text, so VoiceOver can't read the blurred time.
+        .accessibilityLabel(isTimeRevealed
+                            ? Text(time > .now ? "Today's moment time: \(formatted)" : "Today's moment time was \(formatted)")
+                            : Text("Reveal today's moment time"))
+        .accessibilityIdentifier("momentTimeLabel")
+    }
+
     /// Yellow-tinted Liquid Glass card: today's status and the shared moment time.
     private var statusCard: some View {
         HStack(alignment: .center, spacing: 14) {
@@ -145,14 +175,7 @@ struct MomentsView: View {
                     // Grey is too faint on the yellow glass.
                     .foregroundStyle(.primary.opacity(0.75))
                 if let time = model.momentTime {
-                    Label {
-                        Text(time > .now ? "Today's moment time: \(time.formatted(date: .omitted, time: .shortened))"
-                                         : "Today's moment time was \(time.formatted(date: .omitted, time: .shortened))")
-                    } icon: {
-                        Image(systemName: "bell.badge")
-                    }
-                    .font(.footnote.weight(.medium))
-                    .accessibilityIdentifier("momentTimeLabel")
+                    momentTimeLabel(time)
                 }
                 if !model.hasPostedToday {
                     Button { showCapture = true } label: {
@@ -331,8 +354,15 @@ private struct ReceivedMomentCard: View {
                         AvatarView(user: moment.sender, size: 36)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(moment.sender.displayName).font(.subheadline.weight(.semibold))
-                            Text(moment.createdAt, format: .relative(presentation: .named))
-                                .font(.caption).foregroundStyle(.secondary)
+                            Group {
+                                if let place = moment.location?.placeName, !moment.isLocked {
+                                    Text("\(moment.createdAt, format: .relative(presentation: .named)) · \(place)")
+                                } else {
+                                    Text(moment.createdAt, format: .relative(presentation: .named))
+                                }
+                            }
+                            .font(.caption).foregroundStyle(.secondary)
+                            .lineLimit(1)
                         }
                     }
                 }
@@ -394,6 +424,12 @@ private struct SentMomentCard: View {
             }
             if let caption = moment.caption {
                 Text(caption).font(.caption).lineLimit(2)
+            }
+            if let place = moment.location?.placeName {
+                Label(place, systemImage: "mappin")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             if recipients.isEmpty {
                 Label("Just for you", systemImage: "person.fill")

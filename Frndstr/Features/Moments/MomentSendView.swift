@@ -13,8 +13,18 @@ struct MomentFlowView: View {
     // Kept here so Back/Next never lose what the user chose.
     @State private var draft = MomentDraft.fromSettings()
     @State private var options = ShareOptions.fromSettings()
+    @State private var location = MomentLocation()
 
     var body: some View {
+        ZStack {
+            content
+        }
+        // Start right away so the place is usually known by the send step.
+        .task { if options.addLocation { location.setEnabled(true) } }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch step {
         case .capture:
             MomentCaptureView { back, front in
@@ -30,7 +40,8 @@ struct MomentFlowView: View {
             }
         case .send:
             if let photos {
-                MomentSendView(moment: draft.apply(to: photos), options: $options, model: model, friends: friends) {
+                MomentSendView(moment: draft.apply(to: photos), options: $options, location: location,
+                               model: model, friends: friends) {
                     step = .edit
                 }
             }
@@ -44,6 +55,7 @@ struct ShareOptions {
     var selected: Set<UUID>
     var shareAsPost: Bool
     var saveToPhotos: Bool
+    var addLocation: Bool
 
     /// Starts from the defaults in Settings and last time's selection.
     static func fromSettings() -> ShareOptions {
@@ -52,8 +64,43 @@ struct ShareOptions {
             audience: defaults.string(forKey: MomentSettings.audienceKey).flatMap(MomentSettings.Audience.init(rawValue:)) ?? .allFriends,
             selected: MomentSettings.lastSelected,
             shareAsPost: defaults.bool(forKey: MomentSettings.shareAsPostKey),
-            saveToPhotos: defaults.object(forKey: MomentSettings.saveToPhotosKey) as? Bool ?? true
+            saveToPhotos: defaults.object(forKey: MomentSettings.saveToPhotosKey) as? Bool ?? true,
+            addLocation: defaults.object(forKey: MomentSettings.addLocationKey) as? Bool ?? true
         )
+    }
+}
+
+/// Looks up where the moment is being taken (current location + place name).
+@Observable
+final class MomentLocation {
+    private(set) var state: ComposeModel.LocationState = .off
+    @ObservationIgnored private var lookup: Task<Void, Never>?
+
+    func setEnabled(_ enabled: Bool) {
+        lookup?.cancel()
+        lookup = nil
+        guard enabled else {
+            state = .off
+            return
+        }
+        state = .locating
+        lookup = Task {
+            do {
+                let current = try await LocationProvider.currentLocation()
+                let named = await LocationProvider.named(PostLocation(
+                    latitude: current.coordinate.latitude, longitude: current.coordinate.longitude, placeName: nil))
+                if !Task.isCancelled { state = .found(named) }
+            } catch {
+                if !Task.isCancelled { state = .failed(error.localizedDescription) }
+            }
+        }
+    }
+
+    /// The place once found, waiting for a lookup that's still running.
+    func resolved() async -> PostLocation? {
+        await lookup?.value
+        if case let .found(location) = state { return location }
+        return nil
     }
 }
 
@@ -61,6 +108,7 @@ struct ShareOptions {
 struct MomentSendView: View {
     let moment: EditedMoment
     @Binding var options: ShareOptions
+    let location: MomentLocation
     let model: MomentsModel
     let friends: FriendsModel
     var onBack: () -> Void
@@ -220,9 +268,43 @@ struct MomentSendView: View {
             }
             .padding(.vertical, 10)
             .accessibilityIdentifier("saveMomentToggle")
+            Divider()
+            locationRow
         }
         .padding(.horizontal, 14)
         .background(.fill.quaternary, in: .rect(cornerRadius: 18))
+    }
+
+    /// Tags the moment with where it was taken (on by default, see Settings › Moment defaults).
+    private var locationRow: some View {
+        Toggle(isOn: Binding(
+            get: { options.addLocation },
+            set: { enabled in
+                options.addLocation = enabled
+                location.setEnabled(enabled)
+            }
+        )) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Add location")
+                Group {
+                    switch location.state {
+                    case .off:
+                        Text("Your friends see where you took it.")
+                    case .locating:
+                        Text("Finding location…")
+                    case let .found(place):
+                        Label(place.placeName ?? String(format: "%.4f, %.4f", place.latitude, place.longitude),
+                              systemImage: "mappin")
+                    case let .failed(message):
+                        Text(message).foregroundStyle(.red)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 10)
+        .accessibilityIdentifier("momentLocationToggle")
     }
 
     private var sendBar: some View {
@@ -265,7 +347,9 @@ struct MomentSendView: View {
         Task {
             defer { isSending = false }
             do {
-                let result = try await model.send(moment, to: recipients, shareAsPost: options.shareAsPost,
+                let place = options.addLocation ? await location.resolved() : nil
+                let result = try await model.send(moment, to: recipients, location: place,
+                                                  shareAsPost: options.shareAsPost,
                                                   saveToPhotos: options.saveToPhotos, using: app)
                 if result.warnings.isEmpty { dismiss() } else { warnings = result.warnings }
             } catch {

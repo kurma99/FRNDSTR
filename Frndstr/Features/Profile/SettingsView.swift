@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage(MomentSettings.audienceKey) private var momentAudience: MomentSettings.Audience = .allFriends
     @AppStorage(MomentSettings.mirrorSelfieKey) private var mirrorSelfie = false
     @AppStorage(MomentSettings.insetCornerKey) private var insetCorner: MomentLayout.Corner = .topLeading
+    @AppStorage(MomentSettings.addLocationKey) private var addMomentLocation = true
     @State private var confirmLogout = false
 
     var body: some View {
@@ -62,6 +63,7 @@ struct SettingsView: View {
                 Toggle("Flip selfie", isOn: $mirrorSelfie)
                 Toggle("Share as a post when it's over", isOn: $shareMomentsAsPost)
                 Toggle("Save my moments to Photos", isOn: $saveMomentsToPhotos)
+                Toggle("Add location to moments", isOn: $addMomentLocation)
             } header: {
                 Text("Moment defaults")
             } footer: {

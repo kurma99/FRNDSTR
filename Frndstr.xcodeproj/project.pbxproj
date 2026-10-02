@@ -341,7 +341,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Frndstr uses the camera so you can take photos and videos to share with your family.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Frndstr connects to your family's server, which may be on your local network.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Frndstr uses your location only when you choose to add a place to a post.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Frndstr uses your location to add a place to your posts and moments. You can turn it off for each one.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Frndstr records sound when you film a video.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Frndstr saves photos and videos you choose to your library, including their caption and location if you allow it.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -380,7 +380,7 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Frndstr uses the camera so you can take photos and videos to share with your family.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Frndstr connects to your family's server, which may be on your local network.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Frndstr uses your location only when you choose to add a place to a post.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Frndstr uses your location to add a place to your posts and moments. You can turn it off for each one.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Frndstr records sound when you film a video.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Frndstr saves photos and videos you choose to your library, including their caption and location if you allow it.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

@@ -40,12 +40,12 @@ nonisolated struct MemoriesCalendar: Sendable {
         return (0..<7).map { symbols[(start + $0) % 7].uppercased(with: calendar.locale) }
     }
 
-    /// Months that contain at least one moment, newest month first.
+    /// Months that contain at least one moment, oldest month first, so the newest is at the bottom.
     func months(for memories: [ArchivedMoment]) -> [Month] {
         let byMonth = Dictionary(grouping: memories) { memory in
             calendar.dateInterval(of: .month, for: memory.createdAt)?.start ?? memory.createdAt
         }
-        return byMonth.keys.sorted(by: >).map { start in
+        return byMonth.keys.sorted(by: <).map { start in
             month(starting: start, memories: byMonth[start] ?? [])
         }
     }

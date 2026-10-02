@@ -36,6 +36,9 @@ struct MemoriesView: View {
             }
             .padding(16)
         }
+        // Chronological top to bottom, so open at the newest month; short content still starts at the top.
+        .defaultScrollAnchor(.top, for: .alignment)
+        .defaultScrollAnchor(.bottom, for: .initialOffset)
         .overlay {
             if memories.isEmpty {
                 ContentUnavailableView("No memories yet", systemImage: "calendar",
@@ -192,6 +195,10 @@ struct MemoryDetailView: View {
                     }
                     Text(memory.createdAt, format: .dateTime.day().month().year().hour().minute())
                         .font(.subheadline).foregroundStyle(.secondary)
+                    if let place = memory.location?.placeName {
+                        Label(place, systemImage: "mappin")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
                     if !memory.recipientNames.isEmpty {
                         Text("Sent to \(memory.recipientNames.formatted(.list(type: .and)))")
                             .font(.subheadline).foregroundStyle(.secondary)
@@ -233,7 +240,7 @@ struct MemoryDetailView: View {
         guard let data = try? Data(contentsOf: archive.fileURL(for: memory.id, .composite)) else { return }
         Task {
             do {
-                try await PhotoSaver.saveImage(data, metadata: SaveMetadata(caption: memory.caption, location: nil, date: memory.createdAt))
+                try await PhotoSaver.saveImage(data, metadata: SaveMetadata(caption: memory.caption, location: memory.location, date: memory.createdAt))
                 status = String(localized: "Saved to Photos")
             } catch {
                 status = error.localizedDescription

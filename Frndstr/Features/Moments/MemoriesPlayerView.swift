@@ -1,3 +1,4 @@
+import FrndstrAPI
 import SwiftUI
 
 /// Plays a month's moments one after another, story style (see `StoryPlayer` for the controls).
@@ -15,7 +16,7 @@ struct MemoriesPlayerView: View {
                 .accessibilityLabel(memory.caption ?? String(localized: "Moment"))
                 .accessibilityValue(Text(memory.createdAt, format: .dateTime.day().month().year()))
         } header: { memory in
-            StoryHeader(date: memory.createdAt, caption: memory.caption)
+            StoryHeader(date: memory.createdAt, caption: memory.caption, place: memory.location?.placeName)
         }
     }
 }

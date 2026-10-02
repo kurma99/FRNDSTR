@@ -70,6 +70,7 @@ nonisolated enum Takeout {
     struct ExportedMoment: Codable {
         var takenAt: Date
         var caption: String?
+        var place: PostLocation?
         var sentTo: [String]
         var files: [String]
     }
@@ -97,8 +98,8 @@ nonisolated enum Takeout {
                                   place and date written into them), posts.json with comments
                                   and reactions, your highlights and profile.json.
         moments/                  every moment you sent, from this iPhone: moment.jpg (as your
-                                  friends saw it, with caption and date) plus back.jpg and front.jpg.
-        moments.json              date, caption and recipients of each moment.
+                                  friends saw it, with caption, place and date) plus back.jpg and front.jpg.
+        moments.json              date, caption, place and recipients of each moment.
 
         """.utf8).write(to: root.appending(path: "README.txt"))
 
@@ -123,12 +124,12 @@ nonisolated enum Takeout {
                 guard var data = try? Data(contentsOf: archive.fileURL(for: memory.id, variant)) else { continue }
                 if variant == .composite {
                     data = (try? MetadataWriter.writeImage(data, metadata: SaveMetadata(
-                        caption: memory.caption, location: nil, date: memory.createdAt))) ?? data
+                        caption: memory.caption, location: memory.location, date: memory.createdAt))) ?? data
                 }
                 try data.write(to: target.appending(path: fileName))
                 files.append("moments/\(folderName)/\(fileName)")
             }
-            exported.append(ExportedMoment(takenAt: memory.createdAt, caption: memory.caption,
+            exported.append(ExportedMoment(takenAt: memory.createdAt, caption: memory.caption, place: memory.location,
                                            sentTo: memory.recipientNames, files: files))
         }
         return exported
