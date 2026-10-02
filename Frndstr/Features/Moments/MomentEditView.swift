@@ -39,6 +39,7 @@ struct MomentEditView: View {
     var onNext: () -> Void
 
     @FocusState private var captionFocused: Bool
+    @State private var confirmNoCaption = false
 
     private var edited: EditedMoment { draft.apply(to: original) }
 
@@ -94,6 +95,8 @@ struct MomentEditView: View {
                 .padding(.vertical, 12)
             }
             .scrollDismissesKeyboard(.interactively)
+            // Straight into typing after taking the photo.
+            .task { captionFocused = true }
             .navigationTitle("Edit moment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -104,11 +107,21 @@ struct MomentEditView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Next") {
                         captionFocused = false
-                        onNext()
+                        if draft.caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            confirmNoCaption = true
+                        } else {
+                            onNext()
+                        }
                     }
                     .fontWeight(.semibold)
                     .accessibilityIdentifier("editNextButton")
                 }
+            }
+            .alert("No caption?", isPresented: $confirmNoCaption) {
+                Button("Add caption") { captionFocused = true }
+                Button("Continue without", action: onNext)
+            } message: {
+                Text("Your moment doesn't have a caption yet.")
             }
         }
     }

@@ -12,6 +12,7 @@ struct ComposeView: View {
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var showCamera = false
     @State private var confirmDiscard = false
+    @State private var confirmNoCaption = false
     @FocusState private var captionFocused: Bool
 
     private let cameraAvailable = UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -36,6 +37,12 @@ struct ComposeView: View {
                     Button("OK", role: .cancel) {}
                 } message: {
                     Text(model.errorMessage ?? "")
+                }
+                .alert("No caption?", isPresented: $confirmNoCaption) {
+                    Button("Add caption") { captionFocused = true }
+                    Button("Share without", action: publish)
+                } message: {
+                    Text("Your post doesn't have a caption yet.")
                 }
                 .interactiveDismissDisabled(model.isUploading || !model.items.isEmpty)
         }
@@ -225,6 +232,14 @@ struct ComposeView: View {
 
     private func share() {
         captionFocused = false
+        if model.caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            confirmNoCaption = true
+        } else {
+            publish()
+        }
+    }
+
+    private func publish() {
         Task {
             if let post = await model.share(using: app) {
                 onPosted(post)

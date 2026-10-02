@@ -223,7 +223,7 @@ Each milestone ends with something usable on a real phone and a JOURNAL entry.
 - [x] Public-repo prep (2026-09-29): personal names/places removed from code, tests and docs, fresh git history, MIT LICENSE, README with the "vibe coded → run it behind Tailscale, let your agent do a security check" note
 - [x] GitHub Actions: `ci.yml` (server + FrndstrAPI tests on Linux in `swift:6.2-noble` with ffmpeg/exiftool/zip), `docker.yml` (native amd64 + arm64 builds → multi-arch `ghcr.io/<owner>/frndstr-server`, `latest` on main, semver on `v*` tags); compose can use it via `FRNDSTR_IMAGE`
 - [x] App Store prerequisites: bundle ID `cloud.mallwitz.frndstr` (iPhone only), `PrivacyInfo.xcprivacy` (no tracking, no collected data, UserDefaults reason CA92.1), `ITSAppUsesNonExemptEncryption = NO`
-- [ ] TestFlight distribution: developer account enrolled (2026-10-02); still to do: app record in App Store Connect, archive + upload from Xcode, internal testing group
+- [x] TestFlight distribution: developer account enrolled, app record created, build 1.0 (1) archived and uploaded with `xcodebuild` (2026-10-02). Next: internal testing group, test on a real iPhone (dual camera)
 - [ ] Liquid Glass app icon made in Icon Composer: the standard SF Symbols camera glyph on the lime → citrus gradient, with light, dark, clear and tinted variants
 - **Done when:** a user can export everything they own, and restore from backup has been tested.
 
