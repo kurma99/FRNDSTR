@@ -61,12 +61,9 @@ struct MomentsView: View {
                     }
                     .accessibilityIdentifier("memoriesButton")
                 }
-                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                // Same grouped glass pair as Home (Friends + New post).
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("New moment", systemImage: "plus") { showCapture = true }
-                        .buttonStyle(.glassProminent)
-                        .tint(Theme.primary)
-                        .foregroundStyle(Theme.onPrimary)
                         .accessibilityIdentifier("newMomentButton")
                 }
             }
