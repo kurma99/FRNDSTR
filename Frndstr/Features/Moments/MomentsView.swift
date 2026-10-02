@@ -51,8 +51,18 @@ struct MomentsView: View {
                 }
                 .padding(.vertical, 12)
             }
+            // Same header as Home: the title in the wordmark's script, top left. The plain title
+            // stays for back buttons ("< Moments") but isn't drawn in the bar.
             .navigationTitle("Moments")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(removing: .title)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Wordmark(text: String(localized: "Moments"), size: 30)
+                        .fixedSize()
+                }
+                .sharedBackgroundVisibility(.hidden)
+
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
                         MemoriesView()

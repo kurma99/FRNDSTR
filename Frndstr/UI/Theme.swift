@@ -62,10 +62,12 @@ enum Appearance: String, CaseIterable, Identifiable {
 
 /// Script wordmark, like Instagram's logo.
 struct Wordmark: View {
+    /// The app name by default; tabs like Moments use the same script for their title.
+    var text = "Frndstr"
     var size: CGFloat = 30
 
     var body: some View {
-        Text(verbatim: "Frndstr")
+        Text(verbatim: text)
             .font(.custom("SnellRoundhand-Black", size: size, relativeTo: .title))
             .lineLimit(1)
             .minimumScaleFactor(0.5)
