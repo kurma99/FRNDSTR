@@ -68,12 +68,15 @@ struct StorageStats: Content {
         let highlightsFolder = directoryUsage("\(mediaDir)/highlights")
         let highlights = Bucket(label: "Highlights (kept moments)", count: try await HighlightItem.query(on: db).count(),
                                 bytes: highlightsFolder.bytes, size: "")
+        let memoriesFolder = directoryUsage("\(mediaDir)/memories")
+        let memories = Bucket(label: "Memories backups (private)", count: try await MemoryBackup.query(on: db).count(),
+                              bytes: memoriesFolder.bytes, size: "")
         let moments = Bucket(label: "Moments (live, deleted after 24h)", count: liveMoments.count, bytes: momentsFolder.bytes, size: "")
         let avatars = Bucket(label: "Profile photos", count: avatarsFolder.files, bytes: avatarsFolder.bytes, size: "")
         let database = Bucket(label: "Database", count: 1,
                               bytes: fileSize(app.appConfig.databasePath) + fileSize(app.appConfig.databasePath + "-wal"), size: "")
 
-        var buckets = [originals, display, thumbs, moments, highlights, avatars, database]
+        var buckets = [originals, display, thumbs, moments, highlights, memories, avatars, database]
         for index in buckets.indices { buckets[index].size = formatBytes(buckets[index].bytes) }
         let total = buckets.reduce(Int64(0)) { $0 + $1.bytes }
 
@@ -86,13 +89,14 @@ struct StorageStats: Content {
         let rows: [UserRow] = users.compactMap { user in
             guard let id = user.id else { return nil }
             let items = mediaByUser[id] ?? []
+            let bytes = (bytesByUser[id] ?? 0) + directoryUsage("\(mediaDir)/memories/\(id.uuidString)").bytes
             return UserRow(id: id, displayName: user.displayName, username: user.username, isAdmin: user.isAdmin,
                            joined: user.createdAt?.formatted(dateFormat) ?? "–",
                            posts: postsByUser[id]?.count ?? 0,
                            images: items.filter { $0.kind == .image }.count,
                            videos: items.filter { $0.kind == .video }.count,
                            liveMoments: momentsByUser[id]?.count ?? 0,
-                           bytes: bytesByUser[id] ?? 0, size: formatBytes(bytesByUser[id] ?? 0),
+                           bytes: bytes, size: formatBytes(bytes),
                            sessions: sessionsByUser[id]?.count ?? 0)
         }
 

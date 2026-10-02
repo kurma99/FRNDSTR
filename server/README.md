@@ -91,6 +91,9 @@ swift test
 | POST/PATCH/DELETE | `/api/highlights`, `/api/highlights/:id` | create `{title}` / rename, set cover / delete |
 | POST/DELETE | `/api/highlights/:id/items[/:itemID]` | multipart `image`, `thumbnail`, `payload` / remove |
 | GET | `/api/highlights/:id/items/:itemID/{image,thumb}` | owner or friend |
+| GET | `/api/memories` | your own Memories backup (owner only) |
+| POST | `/api/memories` | multipart `back`, `front`, `composite`, `thumb`, `payload` (`MemoryDTO`); same ID again = no-op |
+| GET/DELETE | `/api/memories/:id[/{back,front,composite,thumb}]` | owner only |
 | GET | `/api/takeout` | zip of your own posts (+ comments/reactions) and highlights |
 
 All endpoints except health/register/login need `Authorization: Bearer <token>`.

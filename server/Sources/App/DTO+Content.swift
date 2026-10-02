@@ -30,3 +30,4 @@ extension StreakDTO: @retroactive Content {}
 extension HighlightDTO: @retroactive Content {}
 extension CreateHighlightRequest: @retroactive Content {}
 extension UpdateHighlightRequest: @retroactive Content {}
+extension MemoryDTO: @retroactive Content {}

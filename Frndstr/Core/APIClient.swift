@@ -248,6 +248,35 @@ struct APIClient {
         try await send("DELETE", API.Path.highlightItem(id, itemID))
     }
 
+    // MARK: Memories backup
+
+    /// Your own backed-up Memories, oldest first.
+    func memories() async throws -> [MemoryDTO] {
+        try await send("GET", API.Path.memories)
+    }
+
+    /// Multipart upload: `back`, `front`, `composite` and `thumb` JPEGs and the memory as `payload`.
+    /// Uploading the same memory twice is a no-op on the server.
+    func uploadMemory(_ memory: MemoryDTO, back: Data, front: Data, composite: Data, thumbnail: Data) async throws {
+        let _: MemoryDTO = try await sendMultipart(
+            API.Path.memories, jpegs: [("back", back), ("front", front), ("composite", composite), ("thumb", thumbnail)],
+            payload: memory)
+    }
+
+    func deleteMemory(_ id: UUID) async throws {
+        let _: Empty = try await send("DELETE", API.Path.memory(id))
+    }
+
+    /// One of a backed-up memory's photos (`API.Memories.variants`).
+    func memoryFile(_ id: UUID, _ variant: String) async throws -> Data {
+        let request = makeRequest("GET", url(API.Path.memoryFile(id, variant)))
+        let (data, response) = try await perform { try await Self.uploadSession.data(for: request) }
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if Self.isCloudflareAccessResponse(http) { throw APIError.cloudflareAccessDenied }
+        guard http.statusCode == 200, data.starts(with: [0xFF, 0xD8]) else { throw APIError.invalidResponse }
+        return data
+    }
+
     /// Downloads a media file to a temporary location (for saving to Photos).
     func download(_ path: String) async throws -> URL {
         let request = makeRequest("GET", url(path))

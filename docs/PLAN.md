@@ -23,7 +23,7 @@ Private, self-hosted family Instagram with BeReal-style Moments. This is a livin
 | Feed ordering, pagination | Server | Cursor pagination by `createdAt`. |
 | Moments media | Server = **relay only**, deleted after 24h | Recipients must not keep it, so the server can't either. |
 | Highlights (M6.2) | Server (permanent), uploaded by the sender from their archive | The sender chose to keep them visible to friends. |
-| Sender's moments archive | **Phone** (app storage + optional auto-save to Photos) | "I keep it, my friends don't." |
+| Sender's moments archive | **Phone** (app storage + optional auto-save to Photos) + **private owner-only backup on the server** (M6.4) | "I keep it, my friends don't." The backup means a new phone, a reinstall or a changed app ID can't lose it. |
 | Streak calculation | Server | Needs both sides' activity; tamper-free. |
 | Notification events | Server: `/api/inbox?since=` | The phone polls now; APNs later pushes the same events. |
 | Notification delivery (for now) | **Phone**: local notifications after an inbox sync | No APNs needed yet. |
@@ -65,6 +65,7 @@ docs/PLAN.md, docs/JOURNAL.md
 - `reactions(postId, userId, emoji)`, `comments(id, postId, userId, text, createdAt)`
 - `moments(id, senderId, backPath, frontPath, caption?, createdAt, expiresAt)` + `moment_recipients(momentId, userId, viewedAt?)`
 - `streaks(userA, userB, count, lastDay)`
+- `memory_backups(id = archive ID, ownerId, takenAt, caption?, recipientNames, layout…, lat?, lon?, placeName?)`; files in `data/media/memories/{ownerId}/{id}/` (owner-only, M6.4)
 - `highlights(id, ownerId, title, coverItemId?, createdAt)` + `highlight_items(id, highlightId, sourceId, caption?, takenAt)`; files in `data/media/highlights/{itemId}/`
 - `events(id, userId, type, refId, createdAt)` (notification inbox)
 
@@ -190,6 +191,15 @@ Each milestone ends with something usable on a real phone and a JOURNAL entry.
 - **Done when:** the moment time is hidden until tapped, a friend sees where a moment was taken after unlocking it, and Memories reads top to bottom in time order.
   - Verified by tests (server: location hidden while locked, invalid coordinates rejected, carried into the published post; API: old payloads without location still decode; app: old archive entries still load, month order) and in the simulator with two accounts.
 
+### M6.4 — Memories backup on the server ✅ (2026-10-02)
+- [x] Why: changing the bundle ID (`friendster` → `frndstr`) gave the TestFlight app a fresh, empty container, and every Memory that only lived on the phone was lost
+- [x] The phone uploads every archived moment (back, front, composite, thumbnail + caption, recipients, layout, place) to `POST /api/memories`; re-uploads are no-ops. Existing local Memories are uploaded on the first sync
+- [x] Two-way sync by archive ID: on opening Memories (always), after sending, and on refresh (at most every 10 min). Memories missing on the phone are downloaded, so a new iPhone or reinstall gets everything back
+- [x] Owner-only: `GET /api/memories`, `GET /api/memories/:id/{back,front,composite,thumb}`, `DELETE /api/memories/:id`; anyone else gets 404 (409 on an ID clash). Deleting a memory in the app deletes the server copy (retried until confirmed); deleting the account removes the folder; the dashboard shows the storage
+- [x] Settings › "Back up Memories to server", on by default
+- **Done when:** after uninstalling and reinstalling the app, logging in brings the Memories back.
+  - Verified by tests (server: owner-only access, idempotent upload, delete + account deletion remove files, validation; app: archive ↔ backup mapping) and in the simulator: send → on server → uninstall → reinstall → Memories restored → delete removes the server copy.
+
 ### M6.2 — Feed actions, moment highlights & gestures ✅ (2026-09-28, verified in the simulator)
 **Feed / posts**
 - [x] Post card action row: reaction and comment buttons on the **right**; the separate download button is gone. "Save to Photos" is only in the "…" menu
@@ -268,6 +278,7 @@ Each milestone ends with something usable on a real phone and a JOURNAL entry.
 - Web (M7): an admin dashboard, not a feed. Admin-only login with the normal account.
 - Takeout (M8): own posts only; comments and reactions on them are included in posts.json.
 - Highlights (M6.2, 2026-09-28): the only moments the server keeps past 24h. The sender's phone uploads the moments they put in a highlight from its archive; everything else still expires. Visible to **friends only**, and each moment only **24h after it was taken** (while it's live it stays with its recipients; the owner sees everything, with a "friends see it in …" badge). Viewers **can't save** them, and they're part of the takeout.
+- Memories backup (M6.4, 2026-10-02): the server also keeps a **private, owner-only** copy of each sender's Memories. This doesn't change the core rule: recipients still lose access after 24h and can't save anything. It only means the sender's own copy no longer depends on one phone.
 - Takeout includes moments (M6.2, 2026-09-28): "Download my data" gives **one zip** with your posts, highlights **and your moments** (the server's zip nested next to the phone's Memories archive), instead of two separate exports.
 
 **Open (decide at the listed milestone)**

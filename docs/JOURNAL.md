@@ -4,6 +4,22 @@ Newest entries on top. For each session: what was done, decisions made (and why)
 
 ---
 
+## 2026-10-02 — Memories backup on the server
+
+**Problem**
+- After installing the TestFlight build, all earlier Memories were gone. The bundle ID had changed (`cloud.mallwitz.friendster` → `cloud.mallwitz.frndstr`), so iOS treated it as a new app with an empty container, and Memories only lived on the phone. The old ones weren't rescued (decided not worth it).
+
+**Done**
+- Private owner-only Memories backup on the server (`memory_backups` + `data/media/memories/{owner}/{id}/`) with two-way sync in the app (`MemoryBackup`), a Settings switch (on by default), server-side delete when a memory is deleted, cleanup on account deletion, dashboard storage.
+- Verified with uninstall → reinstall → login → Memories restored.
+
+**Decisions**
+- **The phone uploads its archive copy** instead of the server keeping the moment's files at expiry: one code path for new and old memories, the composite is exactly what the phone shows, and turning backup off simply stops uploads.
+- **Sync by archive ID, no conflict handling needed**: memories never change after they're taken, only appear or get deleted. Deletes are queued until the server confirms, so a deleted memory doesn't come back from the server.
+- **On by default**: losing Memories is the worse failure, and it's the user's own server.
+
+---
+
 ## 2026-10-02 — Moments polish before TestFlight
 
 **Done**

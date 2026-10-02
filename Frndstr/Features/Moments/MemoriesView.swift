@@ -2,12 +2,14 @@ import FrndstrAPI
 import SwiftUI
 
 /// Your own moments as a BeReal-style calendar: one grid per month, MON … SUN,
-/// a thumbnail on every day you shared something. Kept on this iPhone only.
+/// a thumbnail on every day you shared something. Kept on this iPhone, with a private backup
+/// on your server (`MemoryBackup`).
 struct MemoriesView: View {
     @Environment(AppModel.self) private var app
     @State private var memories: [ArchivedMoment] = []
     @State private var selected: ArchivedMoment?
     @State private var playback: Playback?
+    @State private var isRestoring = false
 
     private let calendar = MemoriesCalendar()
     private var archive: MomentArchive? { app.currentUser.map { MomentArchive.forUser($0.id) } }
@@ -40,13 +42,26 @@ struct MemoriesView: View {
         .defaultScrollAnchor(.top, for: .alignment)
         .defaultScrollAnchor(.bottom, for: .initialOffset)
         .overlay {
-            if memories.isEmpty {
+            if memories.isEmpty && !isRestoring {
                 ContentUnavailableView("No memories yet", systemImage: "calendar",
                                        description: Text("Moments you send are kept here, even after they disappear for your friends."))
             }
         }
         .navigationTitle("Memories")
         .onAppear { memories = archive?.all() ?? [] }
+        .task {
+            // Brings back memories this iPhone doesn't have yet (new phone, reinstall).
+            isRestoring = true
+            if await MemoryBackup.shared.sync(using: app, force: true) > 0 { memories = archive?.all() ?? [] }
+            isRestoring = false
+        }
+        .toolbar {
+            if isRestoring {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ProgressView().accessibilityLabel("Syncing memories")
+                }
+            }
+        }
         .sheet(item: $selected) { memory in
             if let archive {
                 MemoryDetailView(memory: memory, archive: archive) {
@@ -178,6 +193,7 @@ struct MemoryDetailView: View {
     let archive: MomentArchive
     var onDelete: () -> Void
 
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var status: String?
     @State private var confirmDelete = false
@@ -218,18 +234,19 @@ struct MemoryDetailView: View {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button("Save to Photos", systemImage: "square.and.arrow.down", action: save)
-                        Button("Delete from iPhone", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                        Button("Delete memory", systemImage: "trash", role: .destructive) { confirmDelete = true }
                     } label: {
                         Label("More", systemImage: "ellipsis")
                     }
                     .confirmationDialog("Delete this memory?", isPresented: $confirmDelete, titleVisibility: .visible) {
                         Button("Delete", role: .destructive) {
                             try? archive.delete(memory.id)
+                            MemoryBackup.shared.delete(memory.id, using: app)
                             onDelete()
                             dismiss()
                         }
                     } message: {
-                        Text("It's only stored on this iPhone, so it can't be recovered.")
+                        Text("It's removed from this iPhone and from your backup on the server, so it can't be recovered.")
                     }
                 }
             }

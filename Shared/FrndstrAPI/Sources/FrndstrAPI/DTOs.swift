@@ -549,6 +549,29 @@ public struct AddHighlightItemRequest: Codable, Sendable, Equatable {
     }
 }
 
+// MARK: - Memories backup
+
+/// One of your own moments as kept in Memories. Also the JSON `payload` when uploading one.
+public struct MemoryDTO: Codable, Sendable, Equatable, Hashable, Identifiable {
+    /// The moment's ID in the owner's on-device archive.
+    public var id: UUID
+    public var takenAt: Date
+    public var caption: String?
+    public var recipientNames: [String]
+    public var layout: MomentLayout?
+    public var location: PostLocation?
+
+    public init(id: UUID, takenAt: Date, caption: String?, recipientNames: [String],
+                layout: MomentLayout?, location: PostLocation?) {
+        self.id = id
+        self.takenAt = takenAt
+        self.caption = caption
+        self.recipientNames = recipientNames
+        self.layout = layout
+        self.location = location
+    }
+}
+
 // MARK: - Notifications inbox
 
 public enum EventType: String, Codable, Sendable, CaseIterable {

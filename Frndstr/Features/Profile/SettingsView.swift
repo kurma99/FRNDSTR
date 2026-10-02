@@ -13,6 +13,7 @@ struct SettingsView: View {
     @AppStorage(MomentSettings.mirrorSelfieKey) private var mirrorSelfie = false
     @AppStorage(MomentSettings.insetCornerKey) private var insetCorner: MomentLayout.Corner = .topLeading
     @AppStorage(MomentSettings.addLocationKey) private var addMomentLocation = true
+    @AppStorage(MemoryBackup.enabledKey) private var backUpMemories = true
     @State private var confirmLogout = false
 
     var body: some View {
@@ -68,6 +69,14 @@ struct SettingsView: View {
                 Text("Moment defaults")
             } footer: {
                 Text("These are preselected each time; you can still change them before sending. Your moments are always kept in Memories on this iPhone.")
+            }
+
+            Section {
+                Toggle("Back up Memories to server", isOn: $backUpMemories)
+            } footer: {
+                Text(backUpMemories
+                     ? "A private copy of your moments is kept on \(app.instanceName), so they come back on a new iPhone or after reinstalling. Only you can see it."
+                     : "Memories are only on this iPhone. If you delete the app or switch phones, they're gone.")
             }
 
             if app.isAdmin, let dashboard = app.adminDashboardURL {

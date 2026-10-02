@@ -90,6 +90,24 @@ private func solidImage(_ color: UIColor, size: CGSize) -> UIImage {
         #expect(all[0].location == place)
         #expect(all[1].location == nil)
     }
+
+    @Test func backupCopyMatchesTheArchiveEntry() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "archive-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let archive = MomentArchive(root: root)
+        let memory = ArchivedMoment(id: UUID(), createdAt: Date(timeIntervalSince1970: 3_000), caption: "Hi",
+                                    recipientNames: ["Anna"], layout: MomentLayout(insetCorner: .topTrailing, swapped: true),
+                                    location: PostLocation(latitude: 1, longitude: 2, placeName: "Somewhere"))
+
+        // Restoring from the server gives back exactly what was uploaded.
+        #expect(ArchivedMoment(MemoryDTO(memory)) == memory)
+
+        let jpeg = try #require(solidImage(.green, size: CGSize(width: 40, height: 60)).jpegData(compressionQuality: 0.8))
+        try archive.save(memory, back: Data([1]), front: Data([2]), composite: jpeg)
+        let files = try archive.files(for: memory.id)
+        #expect(files.back == Data([1]) && files.front == Data([2]) && files.composite == jpeg)
+        #expect(files.thumbnail.starts(with: [0xFF, 0xD8]))
+    }
 }
 
 @MainActor

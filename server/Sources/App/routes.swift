@@ -20,4 +20,5 @@ func routes(_ app: Application) throws {
     try api.register(collection: MomentController())
     try api.register(collection: InboxController())
     try api.register(collection: HighlightController())
+    try api.register(collection: MemoryController())
 }

@@ -51,6 +51,12 @@ nonisolated final class MomentArchive: Sendable {
         try API.makeEncoder().encode(moment).write(to: folder.appending(path: "moment.json"))
     }
 
+    /// The files the server backup needs (thumbnail created if missing).
+    func files(for id: UUID) throws -> (back: Data, front: Data, composite: Data, thumbnail: Data) {
+        (try Data(contentsOf: fileURL(for: id, .back)), try Data(contentsOf: fileURL(for: id, .front)),
+         try Data(contentsOf: fileURL(for: id, .composite)), try Data(contentsOf: thumbnailURL(for: id)))
+    }
+
     /// Newest first.
     func all() -> [ArchivedMoment] {
         let folders = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []

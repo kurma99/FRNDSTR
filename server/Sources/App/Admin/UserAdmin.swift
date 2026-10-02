@@ -20,7 +20,7 @@ enum UserAdmin {
     }
 
     /// Removes the account and everything it owns: posts and their media files, uploads, moments,
-    /// highlights, avatar, comments, reactions, friendships, sessions and notifications.
+    /// highlights, the Memories backup, avatar, comments, reactions, friendships, sessions and notifications.
     static func delete(_ user: User, app: Application) async throws {
         let userID = try user.requireID()
         let db = app.db
@@ -55,6 +55,7 @@ enum UserAdmin {
                 try await HighlightItem.query(on: db).filter(\.$highlight.$id ~~ highlightIDs).delete()
             }
             try await Highlight.query(on: db).filter(\.$owner.$id == userID).delete()
+            try await MemoryBackup.query(on: db).filter(\.$owner.$id == userID).delete()
             try await Friendship.query(on: db)
                 .group(.or) { $0.filter(\.$requester.$id == userID).filter(\.$addressee.$id == userID) }
                 .delete()
@@ -69,6 +70,7 @@ enum UserAdmin {
         for id in momentIDs { try? FileManager.default.removeItem(atPath: Moment.directory(for: id, in: app)) }
         for id in highlightItemIDs { try? FileManager.default.removeItem(atPath: HighlightItem.directory(for: id, in: app)) }
         try? FileManager.default.removeItem(atPath: "\(mediaDir)/avatars/\(userID.uuidString)")
+        try? FileManager.default.removeItem(atPath: MemoryBackup.ownerDirectory(userID, in: app))
     }
 
     /// Deletes uploads that never became a post and are older than a day.

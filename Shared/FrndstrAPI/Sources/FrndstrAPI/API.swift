@@ -23,6 +23,7 @@ public enum API {
         public static let takeout = "/api/takeout"
         public static let streaks = "/api/streaks"
         public static let highlights = "/api/highlights"
+        public static let memories = "/api/memories"
 
         public static func post(_ id: UUID) -> String { "\(posts)/\(id.uuidString)" }
         public static func reaction(_ postID: UUID) -> String { "\(post(postID))/reaction" }
@@ -36,6 +37,9 @@ public enum API {
         public static func highlight(_ id: UUID) -> String { "\(highlights)/\(id.uuidString)" }
         public static func highlightItems(_ id: UUID) -> String { "\(highlight(id))/items" }
         public static func highlightItem(_ id: UUID, _ itemID: UUID) -> String { "\(highlightItems(id))/\(itemID.uuidString)" }
+        public static func memory(_ id: UUID) -> String { "\(memories)/\(id.uuidString)" }
+        /// `variant`: one of `API.Memories.variants`.
+        public static func memoryFile(_ id: UUID, _ variant: String) -> String { "\(memory(id))/\(variant)" }
     }
 
     /// Palette a fresh server starts with. Admins can change it (`InstanceConfig.reactionEmojis`).
@@ -60,6 +64,14 @@ public enum API {
         public static func visibleToFriendsFrom(takenAt: Date) -> Date {
             takenAt.addingTimeInterval(Moments.lifetime)
         }
+    }
+
+    /// Private backup of the sender's own Memories (owner-only), so a new phone or reinstall gets them back.
+    public enum Memories {
+        public static let maxPhotoBytes = 10 * 1024 * 1024
+        public static let maxThumbnailBytes = 1024 * 1024
+        /// Files kept per memory; the upload parts use the same names.
+        public static let variants = ["back", "front", "composite", "thumb"]
     }
 
     public static let maxReactionEmojis = 12

@@ -34,6 +34,7 @@ func configure(_ app: Application, config: AppConfig = .fromEnvironment()) async
     app.migrations.add(AddMomentInsetSize())
     app.migrations.add(AddMomentLocation())
     app.migrations.add(CreateHighlights())
+    app.migrations.add(CreateMemoryBackups())
 
     // Same ISO-8601 dates as the app.
     ContentConfiguration.global.use(encoder: API.makeEncoder(), for: .json)

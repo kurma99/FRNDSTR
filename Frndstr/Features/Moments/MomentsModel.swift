@@ -40,6 +40,8 @@ final class MomentsModel {
             streaks = (try? await streakList) ?? []
             momentTime = (try? await time)?.today
             errorMessage = nil
+            // Keeps the server copy of Memories current (throttled inside).
+            Task { await MemoryBackup.shared.sync(using: app) }
         } catch is CancellationError {
             return
         } catch {
@@ -113,6 +115,7 @@ final class MomentsModel {
         }
 
         await refresh(using: app)
+        Task { await MemoryBackup.shared.sync(using: app, force: true) }
         // Streak reminder may no longer be needed.
         await Notifier.shared.sync(using: app)
         return SendResult(warnings: warnings)
