@@ -143,7 +143,7 @@ Each milestone ends with something usable on a real phone and a JOURNAL entry.
 - [x] Share step: "All friends" or "Selected friends" (then a checklist, remembering last time's picks)
 - [x] Send to the chosen friends only (server checks they're friends), "post to see" lock, 24h viewer with "Xh left", tap inset to swap
 - [x] Server expiry job (startup + every 10 min, deletes rows and files); per-account Memories archive on the phone; "Save to my Photos" option (default in Settings); screenshot notice to the sender; "Seen by X of Y"
-- [x] Opt-in "Share as a post when it's over" (off by default): the composite is uploaded with the moment but the server only publishes it when the moment expires, dated to when it was taken
+- [x] Opt-in "Share as a post when it's over" (off by default; since M6.5 both photos instead of the composite): the composite is uploaded with the moment but the server only publishes it when the moment expires, dated to when it was taken
 - [x] Defaults in Settings › Moment defaults: share with, small-photo corner, flip selfie, share as post, save to Photos
 - **Done when:** a friend sees the moment for 24h, then it's gone from the server, and the sender still has it.
   - Verified in the simulator (photo-picker path) and by server tests (lock/unlock, friends-only, expiry purge). Real dual-camera capture needs a physical iPhone.
@@ -190,6 +190,14 @@ Each milestone ends with something usable on a real phone and a JOURNAL entry.
 - [x] Memories calendar runs chronologically: oldest month at the top, newest at the bottom, and it opens scrolled to the newest month
 - **Done when:** the moment time is hidden until tapped, a friend sees where a moment was taken after unlocking it, and Memories reads top to bottom in time order.
   - Verified by tests (server: location hidden while locked, invalid coordinates rejected, carried into the published post; API: old payloads without location still decode; app: old archive entries still load, month order) and in the simulator with two accounts.
+
+### M6.5 — Viewing, location clarity, moment posts ✅ (2026-10-02)
+- [x] Tap a post's photo/video → full-screen, uncropped viewer; swipe left/right through the post, swipe down or ✕ to close (the feed keeps cropping)
+- [x] Post location says where it comes from: "From your photo: …" (the photo's own GPS) or "Your current position: …", and is re-checked whenever photos are added, removed or finish loading
+- [x] A moment shared as a post becomes a two-photo post (big photo first, then the small one) instead of one composite. `CreateMomentRequest.postMediaIDs` (older servers still get `postMediaID` = the big photo); the stale-upload cleanup keeps both
+- [x] Fix: a profile opened from the friend list appeared *behind* the list (view-based `NavigationLink` mixed with value-based ones). The friend list is now a value destination (`FriendsDestination`)
+- **Done when:** all four work in the simulator.
+  - Verified: server test (two-photo post in order, cleanup keeps the second photo) and simulator walkthrough of all four (moment post published by forcing the expiry).
 
 ### M6.4 — Memories backup on the server ✅ (2026-10-02)
 - [x] Why: changing the bundle ID (`friendster` → `frndstr`) gave the TestFlight app a fresh, empty container, and every Memory that only lived on the phone was lost

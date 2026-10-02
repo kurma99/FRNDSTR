@@ -70,8 +70,8 @@ final class MomentsModel {
         var warnings: [String]
     }
 
-    /// Keeps a local copy first, then uploads. With `shareAsPost` the composite is uploaded too,
-    /// but the server only publishes it as a post once the moment has expired.
+    /// Keeps a local copy first, then uploads. With `shareAsPost` both photos are uploaded as a two-photo post
+    /// (big one first), which the server only publishes once the moment has expired.
     func send(_ moment: EditedMoment, to recipients: [UserDTO], location: PostLocation?, shareAsPost: Bool,
               saveToPhotos: Bool, using app: AppModel) async throws -> SendResult {
         guard let client = app.client, let me = app.currentUser else { throw APIError.invalidResponse }
@@ -90,16 +90,20 @@ final class MomentsModel {
         }
 
         do {
-            var postMediaID: UUID?
+            // The post gets both photos uncropped: the big one first, then the small one.
+            var postMediaIDs: [UUID] = []
             if shareAsPost {
-                let file = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).jpg")
-                try files.composite.write(to: file)
-                defer { try? FileManager.default.removeItem(at: file) }
-                postMediaID = try await client.uploadMedia(fileURL: file, contentType: "image/jpeg").id
+                let photos = moment.layout.swapped ? [files.front, files.back] : [files.back, files.front]
+                for photo in photos {
+                    let file = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).jpg")
+                    try photo.write(to: file)
+                    defer { try? FileManager.default.removeItem(at: file) }
+                    postMediaIDs.append(try await client.uploadMedia(fileURL: file, contentType: "image/jpeg").id)
+                }
             }
             _ = try await client.sendMoment(back: files.back, front: files.front, request: CreateMomentRequest(
                 caption: caption.isEmpty ? nil : caption, recipientIDs: recipients.map(\.id),
-                layout: moment.layout, postMediaID: postMediaID, location: location))
+                layout: moment.layout, postMediaIDs: postMediaIDs.isEmpty ? nil : postMediaIDs, location: location))
         } catch {
             app.handle(error)
             throw error

@@ -24,6 +24,10 @@ struct PostDetailView: View {
     }
 }
 
+/// Opens the friend list. It's a value (not a view link) so profiles opened from the list land on top:
+/// mixing view- and value-based links in one stack puts the value screens underneath.
+struct FriendsDestination: Hashable {}
+
 extension View {
     /// Register once at the root of each NavigationStack.
     func frndstrDestinations() -> some View {
@@ -33,5 +37,17 @@ extension View {
         .navigationDestination(for: PostDTO.self) { post in
             PostDetailView(post: post)
         }
+        .navigationDestination(for: FriendsDestination.self) { _ in
+            FriendsScreen()
+        }
+    }
+}
+
+/// The shared friends model comes from `MainTabView`'s environment.
+private struct FriendsScreen: View {
+    @Environment(FriendsModel.self) private var friends
+
+    var body: some View {
+        FriendsView(model: friends)
     }
 }

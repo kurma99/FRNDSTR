@@ -36,7 +36,7 @@ private func befriend(_ app: Application, _ a: String, _ b: String) async throws
 /// Multipart upload of a moment (two JPEGs + JSON payload).
 private func sendMoment(_ app: Application, token: String, jpeg: Data, to recipients: [UUID],
                         caption: String? = nil, layout: MomentLayout? = nil,
-                        postMediaID: UUID? = nil,
+                        postMediaID: UUID? = nil, postMediaIDs: [UUID]? = nil,
                         location: PostLocation? = nil) async throws -> (status: HTTPStatus, body: Data) {
     let boundary = "Boundary-\(UUID().uuidString)"
     var body = Data()
@@ -52,7 +52,7 @@ private func sendMoment(_ app: Application, token: String, jpeg: Data, to recipi
     part("payload", filename: nil, type: "application/json",
          data: try API.makeEncoder().encode(CreateMomentRequest(caption: caption, recipientIDs: recipients,
                                                                 layout: layout, postMediaID: postMediaID,
-                                                                location: location)))
+                                                                postMediaIDs: postMediaIDs, location: location)))
     body.append(Data("--\(boundary)--\r\n".utf8))
 
     var result: (HTTPStatus, Data) = (.internalServerError, Data())
@@ -191,6 +191,30 @@ struct MomentTests {
             try await MomentJanitor.purge(on: app, now: .now.addingTimeInterval(API.Moments.lifetime + 60))
             let post = try #require(try decoded(FeedPage.self, try await request(app, .GET, API.Path.posts, token: ben)).posts.first)
             #expect(post.location == place)
+        }
+    }
+
+    @Test func postFromMomentHasBigThenSmallPhoto() async throws {
+        try await withTestApp { app, dir in
+            let anna = try await signUp(app, username: "anna")
+            let jpeg = try await makeSample("two.jpg", in: dir, args: ["-f", "lavfi", "-i", "color=purple:s=48x64", "-frames:v", "1"])
+            let big = try await upload(app, token: anna, data: jpeg, type: .jpeg)
+            let small = try await upload(app, token: anna, data: jpeg, type: .jpeg)
+            let third = try await upload(app, token: anna, data: jpeg, type: .jpeg)
+
+            // At most two photos.
+            #expect(try await sendMoment(app, token: anna, jpeg: jpeg, to: [],
+                                         postMediaIDs: [big.id, small.id, third.id]).status == .badRequest)
+
+            let moment = try decoded(MomentDTO.self, try await sendMoment(
+                app, token: anna, jpeg: jpeg, to: [], postMediaIDs: [big.id, small.id]))
+            #expect(moment.becomesPost == true)
+
+            // A day later the stale-upload cleanup must not remove the second photo before it's published.
+            try await UserAdmin.removeStaleUploads(app: app, olderThan: -60)
+            try await MomentJanitor.purge(on: app, now: .now.addingTimeInterval(API.Moments.lifetime + 60))
+            let post = try #require(try decoded(FeedPage.self, try await request(app, .GET, API.Path.posts, token: anna)).posts.first)
+            #expect(post.media.map(\.id) == [big.id, small.id])
         }
     }
 

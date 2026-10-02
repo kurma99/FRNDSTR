@@ -384,19 +384,29 @@ public struct CreateMomentRequest: Codable, Sendable, Equatable {
     /// Friends who receive this moment. Must be accepted friends of the sender.
     public var recipientIDs: [UUID]
     public var layout: MomentLayout?
-    /// Opt-in: an already uploaded composite (`POST /api/media`) that the server publishes as a post
-    /// once the moment expires, dated to when the moment was taken.
+    /// Opt-in: an already uploaded photo (`POST /api/media`) that the server publishes as a post
+    /// once the moment expires, dated to when the moment was taken. With `postMediaIDs` this is their first
+    /// entry, so older servers still publish the main photo.
     public var postMediaID: UUID?
+    /// Opt-in: all photos of that post in order (the big photo, then the small one).
+    public var postMediaIDs: [UUID]?
     /// Opt-in place where the moment was taken.
     public var location: PostLocation?
 
     public init(caption: String?, recipientIDs: [UUID], layout: MomentLayout? = nil, postMediaID: UUID? = nil,
-                location: PostLocation? = nil) {
+                postMediaIDs: [UUID]? = nil, location: PostLocation? = nil) {
         self.caption = caption
         self.recipientIDs = recipientIDs
         self.layout = layout
-        self.postMediaID = postMediaID
+        self.postMediaID = postMediaID ?? postMediaIDs?.first
+        self.postMediaIDs = postMediaIDs
         self.location = location
+    }
+
+    /// The photos to publish, in order (`postMediaIDs`, falling back to the single `postMediaID`).
+    public var resolvedPostMediaIDs: [UUID] {
+        if let postMediaIDs, !postMediaIDs.isEmpty { return postMediaIDs }
+        return postMediaID.map { [$0] } ?? []
     }
 }
 

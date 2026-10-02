@@ -4,6 +4,23 @@ Newest entries on top. For each session: what was done, decisions made (and why)
 
 ---
 
+## 2026-10-02 — Full-image viewer, location source, two-photo moment posts
+
+**Done**
+- Full-screen uncropped viewer for post media (tap the photo).
+- Post location: says whether it comes from the photo or the current position, and follows photo changes.
+- Moment → post: two photos (big, then small) instead of the composite.
+- Friend list → profile opened behind the list; fixed.
+
+**Decisions**
+- **Feed stays cropped, viewer shows everything**: the feed keeps a calm, even rhythm (Instagram-style), and nothing is lost because a tap shows the full image.
+- **Moment posts use both original photos**: in the feed the composite cropped the small photo further, and the separate photos are what you'd want to save anyway.
+
+**Problems**
+- SwiftUI puts value-based pushes (`NavigationLink(value:)`) *below* view-based ones (`NavigationLink { … }`) in the same stack. Rule from now on: inside the app's stacks, only value-based links for screens that link further.
+
+---
+
 ## 2026-10-02 — Memories backup on the server
 
 **Problem**

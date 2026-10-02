@@ -128,9 +128,7 @@ struct ProfileView: View {
                 HStack(spacing: 0) {
                     stat(profile?.postCount ?? model.posts.count, label: "posts")
                     if isCurrentUser {
-                        NavigationLink {
-                            FriendsView(model: friends)
-                        } label: {
+                        NavigationLink(value: FriendsDestination()) {
                             stat(profile?.friendCount ?? 0, label: "friends")
                         }
                         .buttonStyle(.plain)
@@ -191,9 +189,7 @@ struct ProfileView: View {
                         Text("Edit profile").frame(maxWidth: .infinity)
                     }
                     .accessibilityIdentifier("editProfileButton")
-                    NavigationLink {
-                        FriendsView(model: friends)
-                    } label: {
+                    NavigationLink(value: FriendsDestination()) {
                         Label("Friends", systemImage: "person.2")
                             .frame(maxWidth: .infinity)
                     }

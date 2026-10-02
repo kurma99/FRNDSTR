@@ -3,12 +3,18 @@ import SwiftUI
 
 /// Swipeable photos/videos of a post. Uses the first item's aspect ratio,
 /// clamped like Instagram between 3:4 portrait (moment composites) and 1.91:1 landscape.
+/// Tap to see them uncropped in `MediaViewer`.
 struct MediaCarousel: View {
     let media: [MediaDTO]
 
     @Environment(AppModel.self) private var app
     @State private var selection: UUID?
     @State private var isVisible = false
+    @State private var viewer: ViewerStart?
+
+    private struct ViewerStart: Identifiable {
+        let id: UUID
+    }
 
     private var aspectRatio: CGFloat {
         CGFloat(min(max(media.first?.aspectRatio ?? 1, 0.75), 1.91))
@@ -35,6 +41,11 @@ struct MediaCarousel: View {
                     }
                 }
                 .onScrollVisibilityChange(threshold: 0.6) { isVisible = $0 }
+                .fullScreenCover(item: $viewer) { start in
+                    MediaViewer(media: media, startID: start.id) { shown in
+                        if media.count > 1, let shown { selection = shown }
+                    }
+                }
 
             if media.count > 1 {
                 PageDots(count: media.count, selected: selectedIndex)
@@ -62,8 +73,16 @@ struct MediaCarousel: View {
         }
     }
 
-    @ViewBuilder
     private func page(for item: MediaDTO) -> some View {
+        content(for: item)
+            .contentShape(.rect)
+            .onTapGesture { viewer = ViewerStart(id: item.id) }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Shows it full screen, uncropped")
+    }
+
+    @ViewBuilder
+    private func content(for item: MediaDTO) -> some View {
         switch item.kind {
         case .image:
             RemoteImage(path: item.displayPath)

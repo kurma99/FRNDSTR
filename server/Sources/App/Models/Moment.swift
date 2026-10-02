@@ -18,6 +18,8 @@ final class Moment: Model, @unchecked Sendable {
     @OptionalField(key: "inset_size") var insetSize: Double?
     /// Unattached composite that becomes a post when the moment expires (opt-in).
     @OptionalField(key: "post_media_id") var postMediaID: UUID?
+    /// JSON array of all the post's photos in order; `nil` for moments from before (then just `postMediaID`).
+    @OptionalField(key: "post_media_ids") var postMediaIDsJSON: String?
     @OptionalField(key: "latitude") var latitude: Double?
     @OptionalField(key: "longitude") var longitude: Double?
     @OptionalField(key: "place_name") var placeName: String?
@@ -25,6 +27,13 @@ final class Moment: Model, @unchecked Sendable {
     var location: PostLocation? {
         guard let latitude, let longitude else { return nil }
         return PostLocation(latitude: latitude, longitude: longitude, placeName: placeName)
+    }
+
+    var postMediaIDs: [UUID] {
+        if let postMediaIDsJSON, let ids = try? JSONDecoder().decode([UUID].self, from: Data(postMediaIDsJSON.utf8)), !ids.isEmpty {
+            return ids
+        }
+        return postMediaID.map { [$0] } ?? []
     }
 
     var layout: MomentLayout {
@@ -126,6 +135,16 @@ struct AddMomentLocation: AsyncMigration {
     }
 }
 
+struct AddMomentPostMediaList: AsyncMigration {
+    func prepare(on database: any Database) async throws {
+        try await database.schema(Moment.schema).field("post_media_ids", .string).update()
+    }
+
+    func revert(on database: any Database) async throws {
+        try await database.schema(Moment.schema).deleteField("post_media_ids").update()
+    }
+}
+
 /// Deletes expired moments (rows + files) and publishes the opted-in ones as posts.
 /// Runs at startup and every 10 minutes.
 struct MomentJanitor: LifecycleHandler {
@@ -171,10 +190,14 @@ struct MomentJanitor: LifecycleHandler {
     /// Only now, after the moment is over, does the composite become a (permanent) post.
     /// Its date is when the moment was taken, not when it was published.
     static func publishAsPost(_ moment: Moment, on db: any Database) async throws {
-        guard let mediaID = moment.postMediaID,
-              let media = try await PostMedia.find(mediaID, on: db),
-              media.$post.id == nil, media.$owner.id == moment.$sender.id
-        else { return }
+        let ids = moment.postMediaIDs
+        guard !ids.isEmpty else { return }
+        let found = try await PostMedia.query(on: db).filter(\.$id ~~ ids).all()
+        // Keep the sender's order (big photo first); skip anything that went missing or was used meanwhile.
+        let media = ids.compactMap { id in
+            found.first { $0.id == id && $0.$post.id == nil && $0.$owner.id == moment.$sender.id }
+        }
+        guard !media.isEmpty else { return }
 
         let takenAt = moment.createdAt ?? .now
         try await db.transaction { db in
@@ -186,9 +209,11 @@ struct MomentJanitor: LifecycleHandler {
             try await post.create(on: db)
             let postID = try post.requireID()
             try await Post.query(on: db).filter(\.$id == postID).set(\.$createdAt, to: takenAt).update()
-            media.$post.id = postID
-            media.position = 0
-            try await media.save(on: db)
+            for (position, item) in media.enumerated() {
+                item.$post.id = postID
+                item.position = position
+                try await item.save(on: db)
+            }
             let sender = moment.$sender.id
             try await Event.record(.post, for: try await Event.everyone(except: sender, on: db),
                                    actor: sender, ref: postID, text: moment.caption, on: db)

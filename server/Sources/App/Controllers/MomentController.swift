@@ -46,7 +46,11 @@ struct MomentController: RouteCollection {
         if let location = body.location, !location.isValid {
             throw Abort(.badRequest, reason: "Invalid location.")
         }
-        if let mediaID = body.postMediaID {
+        let postMediaIDs = body.resolvedPostMediaIDs
+        guard postMediaIDs.count <= 2, Set(postMediaIDs).count == postMediaIDs.count else {
+            throw Abort(.badRequest, reason: "A moment post has at most two photos.")
+        }
+        for mediaID in postMediaIDs {
             guard let media = try await PostMedia.find(mediaID, on: req.db),
                   media.$owner.id == senderID, media.$post.id == nil, media.kind == .image
             else { throw Abort(.badRequest, reason: "The photo for the post couldn't be found. Please try again.") }
@@ -68,7 +72,9 @@ struct MomentController: RouteCollection {
         moment.insetCorner = body.layout?.insetCorner.rawValue
         moment.swapped = body.layout?.swapped
         moment.insetSize = body.layout?.insetSize.map { MomentLayout(insetSize: $0).resolvedInsetSize }
-        moment.postMediaID = body.postMediaID
+        moment.postMediaID = postMediaIDs.first
+        moment.postMediaIDsJSON = postMediaIDs.isEmpty ? nil
+            : String(decoding: try JSONEncoder().encode(postMediaIDs), as: UTF8.self)
         moment.latitude = body.location?.latitude
         moment.longitude = body.location?.longitude
         moment.placeName = body.location?.placeName

@@ -87,22 +87,14 @@ struct ComposeView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Add location")
                     .font(.body)
-                switch model.locationState {
-                case .off:
-                    EmptyView()
-                case .locating:
-                    Text("Finding location…").font(.footnote).foregroundStyle(.secondary)
-                case let .found(location):
-                    Text(location.placeName ?? String(format: "%.4f, %.4f", location.latitude, location.longitude))
-                        .font(.footnote).foregroundStyle(.secondary)
-                case let .failed(message):
-                    Text(message).font(.footnote).foregroundStyle(.red)
-                }
+                LocationStatusText(state: model.locationState,
+                                   offText: "Uses the photo's own location, or else where you are now.")
+                    .font(.footnote)
             }
             Spacer()
             Toggle("Add location", isOn: Binding(
                 get: { model.locationState != .off },
-                set: { enabled in Task { await model.setLocationEnabled(enabled) } }
+                set: { model.setLocationEnabled($0) }
             ))
             .labelsHidden()
             .accessibilityIdentifier("locationToggle")
@@ -245,6 +237,40 @@ struct ComposeView: View {
                 onPosted(post)
                 dismiss()
             }
+        }
+    }
+}
+
+/// Says where the location comes from while it's looked up and once it's found.
+struct LocationStatusText: View {
+    let state: ComposeModel.LocationState
+    var offText: LocalizedStringKey?
+
+    var body: some View {
+        switch state {
+        case .off:
+            if let offText { Text(offText).foregroundStyle(.secondary) }
+        case .checkingPhotos:
+            Label("Checking your photos for a location…", systemImage: "photo")
+                .foregroundStyle(.secondary)
+        case .locating(.photo):
+            Label("Taking the location from your photo…", systemImage: "photo")
+                .foregroundStyle(.secondary)
+        case .locating(.currentPosition):
+            Label("Taking your current position…", systemImage: "location")
+                .foregroundStyle(.secondary)
+        case let .found(location, source):
+            let place = location.placeName ?? String(format: "%.4f, %.4f", location.latitude, location.longitude)
+            switch source {
+            case .photo:
+                Label("From your photo: \(place)", systemImage: "photo")
+                    .foregroundStyle(.secondary)
+            case .currentPosition:
+                Label("Your current position: \(place)", systemImage: "location.fill")
+                    .foregroundStyle(.secondary)
+            }
+        case let .failed(message):
+            Text(message).foregroundStyle(.red)
         }
     }
 }

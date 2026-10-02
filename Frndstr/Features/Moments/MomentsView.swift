@@ -186,9 +186,7 @@ struct MomentsView: View {
                     .accessibilityIdentifier("takeMomentButton")
                 }
                 if !hasFriends {
-                    NavigationLink {
-                        FriendsView(model: friends)
-                    } label: {
+                    NavigationLink(value: FriendsDestination()) {
                         Label("Add friends", systemImage: "person.badge.plus")
                     }
                     .buttonStyle(.glass)

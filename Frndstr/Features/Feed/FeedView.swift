@@ -44,9 +44,7 @@ struct FeedView: View {
                 .sharedBackgroundVisibility(.hidden)
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        FriendsView(model: friends)
-                    } label: {
+                    NavigationLink(value: FriendsDestination()) {
                         Label("Friends", systemImage: "person.2")
                     }
                     .badge(friends.incomingCount)

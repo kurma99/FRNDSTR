@@ -29,16 +29,28 @@ final class ComposeModel {
         case video(URL)
     }
 
+    /// Where a post's or moment's location comes from, shown so it's never a surprise.
+    enum LocationSource: Equatable {
+        /// The GPS position saved in the photo or video itself.
+        case photo
+        /// Where the phone is right now.
+        case currentPosition
+    }
+
     enum LocationState: Equatable {
         case off
-        case locating
-        case found(PostLocation)
+        /// Photos are still loading; one of them may carry its own location.
+        case checkingPhotos
+        case locating(LocationSource)
+        case found(PostLocation, LocationSource)
         case failed(String)
     }
 
     var items: [Item] = []
     var caption = ""
     private(set) var locationState: LocationState = .off
+    private var wantsLocation = false
+    @ObservationIgnored private var locationTask: Task<Void, Never>?
     private(set) var isUploading = false
     private(set) var uploadProgress: Double = 0
     var errorMessage: String?
@@ -70,12 +82,14 @@ final class ComposeModel {
             items.append(item)
             Task { await prepare(item.id) { try await Self.load(pickerItem) } }
         }
+        updateLocation()
     }
 
     func add(_ result: CameraResult) {
         guard remainingSlots > 0 else { return }
         let item = Item(pickerItem: nil)
         items.append(item)
+        updateLocation()
         Task {
             await prepare(item.id) {
                 switch result {
@@ -88,6 +102,7 @@ final class ComposeModel {
 
     func remove(_ id: Item.ID) {
         items.removeAll { $0.id == id }
+        updateLocation()
     }
 
     private func prepare(_ id: Item.ID, _ work: () async throws -> PreparedMedia) async {
@@ -100,6 +115,7 @@ final class ComposeModel {
         if let index = items.firstIndex(where: { $0.id == id }) {
             items[index].state = state
         }
+        updateLocation()
     }
 
     private static func load(_ pickerItem: PhotosPickerItem) async throws -> PreparedMedia {
@@ -118,32 +134,62 @@ final class ComposeModel {
 
     // MARK: Location
 
-    /// Opt-in: uses the first photo's own GPS if it has one, otherwise the current location.
-    func setLocationEnabled(_ enabled: Bool) async {
-        guard enabled else {
+    func setLocationEnabled(_ enabled: Bool) {
+        wantsLocation = enabled
+        updateLocation()
+    }
+
+    /// Opt-in: uses the first photo's own GPS if it has one, otherwise the current position.
+    /// Re-checked whenever photos are added, removed or finish loading.
+    private func updateLocation() {
+        guard wantsLocation else {
+            locationTask?.cancel()
             locationState = .off
             return
         }
-        locationState = .locating
-        do {
-            let coordinate: PostLocation
-            if let embedded = items.lazy.compactMap({ $0.prepared?.capturedLocation }).first {
-                coordinate = embedded
-            } else {
-                let current = try await LocationProvider.currentLocation()
-                coordinate = PostLocation(latitude: current.coordinate.latitude,
-                                          longitude: current.coordinate.longitude, placeName: nil)
+        if items.contains(where: { if case .preparing = $0.state { true } else { false } }) {
+            locationTask?.cancel()
+            locationState = .checkingPhotos
+            return
+        }
+
+        let embedded = items.lazy.compactMap { $0.prepared?.capturedLocation }.first
+        let source: LocationSource = embedded == nil ? .currentPosition : .photo
+        // Already showing (or looking up) the right place: don't start over.
+        switch locationState {
+        case let .found(location, current) where current == source:
+            if source == .currentPosition
+                || (location.latitude == embedded?.latitude && location.longitude == embedded?.longitude) { return }
+        case .locating(.currentPosition) where source == .currentPosition:
+            return
+        default:
+            break
+        }
+
+        locationTask?.cancel()
+        locationState = .locating(source)
+        locationTask = Task {
+            do {
+                let coordinate: PostLocation
+                if let embedded {
+                    coordinate = embedded
+                } else {
+                    let current = try await LocationProvider.currentLocation()
+                    coordinate = PostLocation(latitude: current.coordinate.latitude,
+                                              longitude: current.coordinate.longitude, placeName: nil)
+                }
+                let named = await LocationProvider.named(coordinate)
+                guard !Task.isCancelled else { return }
+                locationState = .found(named, source)
+            } catch {
+                guard !Task.isCancelled else { return }
+                locationState = .failed(error.localizedDescription)
             }
-            let named = await LocationProvider.named(coordinate)
-            // The user may have switched it off meanwhile.
-            if locationState == .locating { locationState = .found(named) }
-        } catch {
-            if locationState == .locating { locationState = .failed(error.localizedDescription) }
         }
     }
 
     private var postLocation: PostLocation? {
-        if case let .found(location) = locationState { location } else { nil }
+        if case let .found(location, _) = locationState { location } else { nil }
     }
 
     // MARK: Sharing

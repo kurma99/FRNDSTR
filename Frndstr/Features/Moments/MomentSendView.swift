@@ -83,13 +83,13 @@ final class MomentLocation {
             state = .off
             return
         }
-        state = .locating
+        state = .locating(.currentPosition)
         lookup = Task {
             do {
                 let current = try await LocationProvider.currentLocation()
                 let named = await LocationProvider.named(PostLocation(
                     latitude: current.coordinate.latitude, longitude: current.coordinate.longitude, placeName: nil))
-                if !Task.isCancelled { state = .found(named) }
+                if !Task.isCancelled { state = .found(named, .currentPosition) }
             } catch {
                 if !Task.isCancelled { state = .failed(error.localizedDescription) }
             }
@@ -99,7 +99,7 @@ final class MomentLocation {
     /// The place once found, waiting for a lookup that's still running.
     func resolved() async -> PostLocation? {
         await lookup?.value
-        if case let .found(location) = state { return location }
+        if case let .found(location, _) = state { return location }
         return nil
     }
 }
@@ -249,7 +249,7 @@ struct MomentSendView: View {
             Toggle(isOn: $options.shareAsPost) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Share as a post when it's over")
-                    Text("After 24 hours it appears in the feed for everyone on \(app.instanceName), dated to when you took it.")
+                    Text("After 24 hours both photos appear as one post in the feed for everyone on \(app.instanceName), dated to when you took it.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -286,21 +286,8 @@ struct MomentSendView: View {
         )) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Add location")
-                Group {
-                    switch location.state {
-                    case .off:
-                        Text("Your friends see where you took it.")
-                    case .locating:
-                        Text("Finding location…")
-                    case let .found(place):
-                        Label(place.placeName ?? String(format: "%.4f, %.4f", place.latitude, place.longitude),
-                              systemImage: "mappin")
-                    case let .failed(message):
-                        Text(message).foregroundStyle(.red)
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                LocationStatusText(state: location.state, offText: "Your friends see where you took it.")
+                    .font(.caption)
             }
         }
         .padding(.vertical, 10)

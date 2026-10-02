@@ -6,13 +6,15 @@ struct LoopingVideoView: View {
     let url: URL
     /// Whether the video is on screen; playback pauses when it scrolls away.
     let isActive: Bool
+    /// Crop to fill the frame (feed) or show the whole video (full-screen viewer).
+    var fillsFrame = true
 
     @State private var player: AVQueuePlayer?
     @State private var looper: AVPlayerLooper?
     @State private var isMuted = true
 
     var body: some View {
-        PlayerLayerView(player: player)
+        PlayerLayerView(player: player, fillsFrame: fillsFrame)
             .background(Color.black)
             .overlay(alignment: .bottomTrailing) {
                 Button {
@@ -56,15 +58,15 @@ struct LoopingVideoView: View {
 
 private struct PlayerLayerView: UIViewRepresentable {
     let player: AVPlayer?
+    let fillsFrame: Bool
 
     func makeUIView(context: Context) -> PlayerUIView {
-        let view = PlayerUIView()
-        view.playerLayer.videoGravity = .resizeAspectFill
-        return view
+        PlayerUIView()
     }
 
     func updateUIView(_ view: PlayerUIView, context: Context) {
         view.playerLayer.player = player
+        view.playerLayer.videoGravity = fillsFrame ? .resizeAspectFill : .resizeAspect
     }
 
     final class PlayerUIView: UIView {

@@ -80,8 +80,8 @@ enum UserAdmin {
             .filter(\.$post.$id == nil)
             .filter(\.$createdAt < Date().addingTimeInterval(-age))
             .all()
-        // Keep composites that a pending moment will still publish.
-        let reserved = Set(try await Moment.query(on: app.db).all().compactMap(\.postMediaID))
+        // Keep photos that a pending moment will still publish.
+        let reserved = Set(try await Moment.query(on: app.db).all().flatMap(\.postMediaIDs))
         var removed = 0
         for item in stale {
             guard let id = item.id, !reserved.contains(id) else { continue }

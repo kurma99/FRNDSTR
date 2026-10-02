@@ -44,6 +44,7 @@ struct MainTabView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         // Profiles (in every tab) show the person's live moments from here.
         .environment(moments)
+        .environment(friends)
         .onChange(of: selection) { oldValue, newValue in
             // The create tab is an action, not a destination.
             if newValue == .create {
