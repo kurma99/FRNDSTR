@@ -53,7 +53,7 @@ struct MemoryTests {
     private let memory = MemoryDTO(
         id: UUID(), takenAt: Date(timeIntervalSince1970: 1_790_000_000), caption: "Frühstück",
         recipientNames: ["Ben", "Cleo"], layout: MomentLayout(insetCorner: .bottomTrailing, swapped: true, insetSize: 0.4),
-        location: PostLocation(latitude: 50.73, longitude: 7.10, placeName: "Bonn, Germany"))
+        location: PostLocation(latitude: 53.55, longitude: 9.99, placeName: "Hamburg, Germany"))
 
     @Test func ownerOnlyBackupRoundTripsAndRetriesAreHarmless() async throws {
         try await withTestApp { app, dir in

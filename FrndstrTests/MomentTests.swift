@@ -73,7 +73,7 @@ private func solidImage(_ color: UIColor, size: CGSize) -> UIImage {
         defer { try? FileManager.default.removeItem(at: root) }
         let archive = MomentArchive(root: root)
 
-        let place = PostLocation(latitude: 50.73, longitude: 7.10, placeName: "Bonn, Germany")
+        let place = PostLocation(latitude: 53.55, longitude: 9.99, placeName: "Hamburg, Germany")
         let tagged = ArchivedMoment(id: UUID(), createdAt: Date(timeIntervalSince1970: 2_000), caption: nil,
                                     recipientNames: [], location: place)
         try archive.save(tagged, back: Data([1]), front: Data([2]), composite: Data([3]))

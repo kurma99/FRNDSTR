@@ -170,10 +170,10 @@ struct MomentTests {
             let benID = try await userID(app, ben)
             let jpeg = try await makeSample("l.jpg", in: dir, args: ["-f", "lavfi", "-i", "color=orange:s=48x64", "-frames:v", "1"])
             let composite = try await upload(app, token: anna, data: jpeg, type: .jpeg)
-            let place = PostLocation(latitude: 50.73, longitude: 7.10, placeName: "Bonn, Germany")
+            let place = PostLocation(latitude: 53.55, longitude: 9.99, placeName: "Hamburg, Germany")
 
             // Out-of-range coordinates are rejected.
-            let invalid = PostLocation(latitude: 120, longitude: 7.10, placeName: nil)
+            let invalid = PostLocation(latitude: 120, longitude: 9.99, placeName: nil)
             #expect(try await sendMoment(app, token: anna, jpeg: jpeg, to: [benID], location: invalid).status == .badRequest)
 
             let moment = try decoded(MomentDTO.self, try await sendMoment(
