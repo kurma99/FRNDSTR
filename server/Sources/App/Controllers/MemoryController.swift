@@ -64,19 +64,33 @@ struct MemoryController: RouteCollection {
             else { throw Abort(.unsupportedMediaType, reason: "Memories must be JPEG photos.") }
         }
 
+        // Written to a folder of its own first, so two uploads of the same memory at once (a retry while
+        // the first is still running) can't delete or half-overwrite each other's photos.
         let directory = MemoryBackup.directory(for: memory.id, ownerID: ownerID, in: req.application)
-        try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        let staging = "\(directory).upload-\(UUID().uuidString)"
+        try FileManager.default.createDirectory(atPath: staging, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: staging) }
+        for (name, file, _) in files {
+            try await req.fileio.writeFile(file.data, at: "\(staging)/\(name).jpg")
+        }
+        let row = try MemoryBackup(memory, ownerID: ownerID)
         do {
-            for (name, file, _) in files {
-                try await req.fileio.writeFile(file.data, at: "\(directory)/\(name).jpg")
-            }
-            let row = try MemoryBackup(memory, ownerID: ownerID)
             try await row.create(on: req.db)
-            return try row.toDTO()
         } catch {
-            try? FileManager.default.removeItem(atPath: directory)
+            // The other upload won the race: same memory, already stored.
+            if let existing = try await MemoryBackup.find(memory.id, on: req.db), existing.$owner.id == ownerID {
+                return try existing.toDTO()
+            }
             throw error
         }
+        do {
+            try? FileManager.default.removeItem(atPath: directory)
+            try FileManager.default.moveItem(atPath: staging, toPath: directory)
+        } catch {
+            try? await row.delete(on: req.db)
+            throw error
+        }
+        return try row.toDTO()
     }
 
     @Sendable

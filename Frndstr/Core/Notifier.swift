@@ -121,7 +121,11 @@ final class Notifier: NSObject {
 
     private let center = UNUserNotificationCenter.current()
     /// Set by the app so notification taps can route.
-    weak var app: AppModel?
+    weak var app: AppModel? {
+        didSet { deliverPendingRoute() }
+    }
+    /// A tap that arrived before the app model was set (cold launch from a notification).
+    private var pendingRoute: NotificationRoute?
 
     override private init() {
         super.init()
@@ -210,18 +214,31 @@ final class Notifier: NSObject {
 }
 
 extension Notifier: UNUserNotificationCenterDelegate {
+    // Completion-handler versions that answer right away on the thread iOS called on. The async
+    // versions finished on a background thread after hopping to the main actor, and UIKit crashed
+    // when its hidden completion handler was called from there (tapping a reminder).
+
     /// Show banners while the app is open too.
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification)
-        async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                            withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
     }
 
-    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                            withCompletionHandler completionHandler: @escaping () -> Void) {
         let encoded = response.notification.request.content.userInfo["route"] as? String
-        await MainActor.run {
-            if let encoded, let route = NotificationRoute(encoded: encoded) {
-                Notifier.shared.app?.pendingRoute = route
-            }
+        completionHandler()
+        guard let encoded else { return }
+        Task { @MainActor in
+            guard let route = NotificationRoute(encoded: encoded) else { return }
+            Notifier.shared.pendingRoute = route
+            Notifier.shared.deliverPendingRoute()
         }
+    }
+
+    private func deliverPendingRoute() {
+        guard let app, let route = pendingRoute else { return }
+        pendingRoute = nil
+        app.pendingRoute = route
     }
 }

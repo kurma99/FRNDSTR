@@ -7,6 +7,11 @@ struct FrndstrApp: App {
     @AppStorage(Appearance.storageKey) private var appearance: Appearance = .system
     @Environment(\.scenePhase) private var scenePhase
 
+    init() {
+        // Becomes the notification delegate before launch finishes, so a tap that opens the app isn't lost.
+        _ = Notifier.shared
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

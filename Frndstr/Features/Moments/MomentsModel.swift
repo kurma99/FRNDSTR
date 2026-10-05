@@ -70,9 +70,13 @@ final class MomentsModel {
         var warnings: [String]
     }
 
+    /// Post photos already uploaded for a moment, so a retry doesn't upload them again.
+    @ObservationIgnored private var uploadedPostMedia: [UUID: [UUID]] = [:]
+
     /// Keeps a local copy first, then uploads. With `shareAsPost` both photos are uploaded as a two-photo post
     /// (big one first), which the server only publishes once the moment has expired.
-    func send(_ moment: EditedMoment, to recipients: [UserDTO], location: PostLocation?, shareAsPost: Bool,
+    /// `id` stays the same for every retry of one moment, so neither Memories nor the server get copies.
+    func send(_ moment: EditedMoment, id: UUID, to recipients: [UserDTO], location: PostLocation?, shareAsPost: Bool,
               saveToPhotos: Bool, using app: AppModel) async throws -> SendResult {
         guard let client = app.client, let me = app.currentUser else { throw APIError.invalidResponse }
         let caption = moment.caption.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -81,7 +85,7 @@ final class MomentsModel {
 
         do {
             try MomentArchive.forUser(me.id).save(
-                ArchivedMoment(id: UUID(), createdAt: .now, caption: caption.isEmpty ? nil : caption,
+                ArchivedMoment(id: id, createdAt: .now, caption: caption.isEmpty ? nil : caption,
                                recipientNames: recipients.map(\.displayName), layout: moment.layout,
                                location: location),
                 back: files.back, front: files.front, composite: files.composite)
@@ -91,8 +95,8 @@ final class MomentsModel {
 
         do {
             // The post gets both photos uncropped: the big one first, then the small one.
-            var postMediaIDs: [UUID] = []
-            if shareAsPost {
+            var postMediaIDs: [UUID] = shareAsPost ? uploadedPostMedia[id] ?? [] : []
+            if shareAsPost && postMediaIDs.isEmpty {
                 let photos = moment.layout.swapped ? [files.front, files.back] : [files.back, files.front]
                 for photo in photos {
                     let file = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).jpg")
@@ -100,10 +104,13 @@ final class MomentsModel {
                     defer { try? FileManager.default.removeItem(at: file) }
                     postMediaIDs.append(try await client.uploadMedia(fileURL: file, contentType: "image/jpeg").id)
                 }
+                uploadedPostMedia[id] = postMediaIDs
             }
             _ = try await client.sendMoment(back: files.back, front: files.front, request: CreateMomentRequest(
                 caption: caption.isEmpty ? nil : caption, recipientIDs: recipients.map(\.id),
-                layout: moment.layout, postMediaIDs: postMediaIDs.isEmpty ? nil : postMediaIDs, location: location))
+                layout: moment.layout, postMediaIDs: postMediaIDs.isEmpty ? nil : postMediaIDs, location: location,
+                clientID: id))
+            uploadedPostMedia[id] = nil
         } catch {
             app.handle(error)
             throw error

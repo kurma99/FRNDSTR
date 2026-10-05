@@ -392,9 +392,13 @@ public struct CreateMomentRequest: Codable, Sendable, Equatable {
     public var postMediaIDs: [UUID]?
     /// Opt-in place where the moment was taken.
     public var location: PostLocation?
+    /// Chosen by the phone once per moment and sent again on every retry. The server uses it as the
+    /// moment's ID, so a retry after a lost response returns the first moment instead of creating a copy.
+    public var clientID: UUID?
 
     public init(caption: String?, recipientIDs: [UUID], layout: MomentLayout? = nil, postMediaID: UUID? = nil,
-                postMediaIDs: [UUID]? = nil, location: PostLocation? = nil) {
+                postMediaIDs: [UUID]? = nil, location: PostLocation? = nil, clientID: UUID? = nil) {
+        self.clientID = clientID
         self.caption = caption
         self.recipientIDs = recipientIDs
         self.layout = layout

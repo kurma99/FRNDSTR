@@ -37,7 +37,7 @@ private func befriend(_ app: Application, _ a: String, _ b: String) async throws
 private func sendMoment(_ app: Application, token: String, jpeg: Data, to recipients: [UUID],
                         caption: String? = nil, layout: MomentLayout? = nil,
                         postMediaID: UUID? = nil, postMediaIDs: [UUID]? = nil,
-                        location: PostLocation? = nil) async throws -> (status: HTTPStatus, body: Data) {
+                        location: PostLocation? = nil, clientID: UUID? = nil) async throws -> (status: HTTPStatus, body: Data) {
     let boundary = "Boundary-\(UUID().uuidString)"
     var body = Data()
     func part(_ name: String, filename: String?, type: String, data: Data) {
@@ -52,7 +52,8 @@ private func sendMoment(_ app: Application, token: String, jpeg: Data, to recipi
     part("payload", filename: nil, type: "application/json",
          data: try API.makeEncoder().encode(CreateMomentRequest(caption: caption, recipientIDs: recipients,
                                                                 layout: layout, postMediaID: postMediaID,
-                                                                postMediaIDs: postMediaIDs, location: location)))
+                                                                postMediaIDs: postMediaIDs, location: location,
+                                                                clientID: clientID)))
     body.append(Data("--\(boundary)--\r\n".utf8))
 
     var result: (HTTPStatus, Data) = (.internalServerError, Data())
@@ -265,6 +266,35 @@ struct MomentTests {
             try await MomentJanitor.purge(on: app, now: .now.addingTimeInterval(API.Moments.lifetime + 60))
             let posts = try decoded(FeedPage.self, try await request(app, .GET, API.Path.posts, token: ben)).posts
             #expect(posts.map(\.caption) == ["Nur für mich"])
+        }
+    }
+
+    @Test func retryWithTheSameClientIDMakesNoCopy() async throws {
+        try await withTestApp { app, dir in
+            let anna = try await signUp(app, username: "anna")
+            let ben = try await signUp(app, username: "ben")
+            try await befriend(app, anna, ben)
+            let benID = try await userID(app, ben)
+            let jpeg = try await makeSample("r.jpg", in: dir, args: ["-f", "lavfi", "-i", "color=blue:s=48x64", "-frames:v", "1"])
+            let photo = try await upload(app, token: anna, data: jpeg, type: .jpeg)
+            let clientID = UUID()
+
+            // The phone missed the first response and taps Send again.
+            let first = try decoded(MomentDTO.self, try await sendMoment(
+                app, token: anna, jpeg: jpeg, to: [benID], caption: "Einmal", postMediaIDs: [photo.id], clientID: clientID))
+            let retry = try decoded(MomentDTO.self, try await sendMoment(
+                app, token: anna, jpeg: jpeg, to: [benID], caption: "Einmal", postMediaIDs: [photo.id], clientID: clientID))
+            #expect(first.id == clientID && retry.id == clientID)
+            #expect(try await Moment.query(on: app.db).count() == 1)
+            #expect(try await Event.query(on: app.db).all().filter { $0.typeRaw == "moment" }.count == 1)
+
+            // Someone else can't take over that ID.
+            #expect(try await sendMoment(app, token: ben, jpeg: jpeg, to: [], clientID: clientID).status == .conflict)
+
+            // And only one post comes out of it.
+            try await MomentJanitor.purge(on: app, now: .now.addingTimeInterval(API.Moments.lifetime + 60))
+            let posts = try decoded(FeedPage.self, try await request(app, .GET, API.Path.posts, token: ben)).posts
+            #expect(posts.map(\.caption) == ["Einmal"])
         }
     }
 }

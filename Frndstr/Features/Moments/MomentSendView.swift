@@ -116,6 +116,8 @@ struct MomentSendView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var isSending = false
+    /// One ID for this moment, reused when Send is tapped again after an error.
+    @State private var momentID = UUID()
     @State private var errorMessage: String?
     @State private var warnings: [String] = []
 
@@ -335,7 +337,7 @@ struct MomentSendView: View {
             defer { isSending = false }
             do {
                 let place = options.addLocation ? await location.resolved() : nil
-                let result = try await model.send(moment, to: recipients, location: place,
+                let result = try await model.send(moment, id: momentID, to: recipients, location: place,
                                                   shareAsPost: options.shareAsPost,
                                                   saveToPhotos: options.saveToPhotos, using: app)
                 if result.warnings.isEmpty { dismiss() } else { warnings = result.warnings }

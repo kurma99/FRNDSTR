@@ -15,7 +15,8 @@ struct MomentsView: View {
     @State private var playing: StoryGroup?
     /// Unlocked received moments currently on screen (for screenshot reports).
     @State private var visibleIDs: Set<UUID> = []
-    @State private var isTimeRevealed = false
+    /// The moment time the user last revealed, so the reveal survives relaunches but not the next day's time.
+    @AppStorage("moments.revealedTime") private var revealedTime: Double = 0
 
     /// One person's live moments, newest first.
     struct StoryGroup: Identifiable {
@@ -134,11 +135,13 @@ struct MomentsView: View {
 
     // MARK: Sections
 
-    /// The shared moment time stays blurred (it's meant to be a surprise) until tapped.
+    /// The shared moment time stays blurred (it's meant to be a surprise) until tapped once,
+    /// or until it has passed. Tapping only reveals; it never hides the time again.
     private func momentTimeLabel(_ time: Date) -> some View {
         let formatted = time.formatted(date: .omitted, time: .shortened)
+        let isTimeRevealed = time <= .now || revealedTime == time.timeIntervalSinceReferenceDate
         return Button {
-            withAnimation(.smooth) { isTimeRevealed.toggle() }
+            withAnimation(.smooth) { revealedTime = time.timeIntervalSinceReferenceDate }
         } label: {
             Label {
                 HStack(spacing: 4) {

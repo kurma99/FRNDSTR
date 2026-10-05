@@ -30,6 +30,12 @@ struct MomentController: RouteCollection {
         let upload = try req.content.decode(Upload.self)
         let body = try API.makeDecoder().decode(CreateMomentRequest.self, from: Data(upload.payload.utf8))
 
+        // A retry of a moment that already arrived (the phone missed the response): no second copy.
+        if let clientID = body.clientID, let existing = try await Moment.find(clientID, on: req.db) {
+            guard existing.$sender.id == senderID else { throw Abort(.conflict) }
+            return try await Self.dto(for: clientID, viewerID: senderID, req: req)
+        }
+
         let caption = body.caption?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard (caption?.count ?? 0) <= API.Moments.maxCaptionLength else {
             throw Abort(.badRequest, reason: "Caption is too long.")
@@ -61,7 +67,7 @@ struct MomentController: RouteCollection {
             else { throw Abort(.unsupportedMediaType, reason: "Moments must be JPEG photos.") }
         }
 
-        let id = UUID()
+        let id = body.clientID ?? UUID()
         let directory = Moment.directory(for: id, in: req.application)
         try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         try await req.fileio.writeFile(upload.back.data, at: "\(directory)/back.jpg")
