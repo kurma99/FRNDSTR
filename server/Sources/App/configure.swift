@@ -43,6 +43,7 @@ func configure(_ app: Application, config: AppConfig = .fromEnvironment()) async
 
     app.asyncCommands.use(InviteCommand(), as: "invite")
     app.asyncCommands.use(AdminCommand(), as: "admin")
+    app.asyncCommands.use(SeedCommand(), as: "seed")
     app.lifecycle.use(MomentJanitor())
 
     app.views.use(.leaf)

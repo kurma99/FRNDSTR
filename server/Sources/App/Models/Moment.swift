@@ -154,8 +154,8 @@ struct MomentJanitor: LifecycleHandler {
         _ = try? await Self.purge(on: application)
         let app = application
         let task = Task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: Self.interval)
+            // Stop as soon as the sleep is cancelled: one more purge after shutdown would hit closed databases.
+            while (try? await Task.sleep(for: Self.interval)) != nil {
                 _ = try? await Self.purge(on: app)
             }
         }

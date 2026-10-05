@@ -61,6 +61,19 @@ swift test
 > If the repo sits in an iCloud-synced folder, add `--scratch-path /tmp/frndstr-build/server`
 > to `swift build/test/run`; synced extended attributes break code signing of test bundles.
 
+### Demo server
+
+```sh
+scripts/demo.sh            # reuse last demo data, or create it
+scripts/demo.sh --reset    # start over
+```
+
+Starts a throwaway server on port 8090 (data in `/tmp/frndstr-demo`; change with `PORT` / `DEMO_DIR`).
+Sign in as `demo` / `demodemo`. It comes with friends `anna`, `ben`, `cleo` and `dani` (same password),
+an open friend request from `emil`, two weeks of posts with comments and reactions, a streak with Anna,
+and three live moments that unlock once you send one. All photos are colour gradients.
+The data comes from `./App seed`, which only runs on a server without accounts.
+
 ## API (v1)
 
 | Method | Path | Notes |
