@@ -6,13 +6,17 @@ import UIKit
 /// Each item is shown for `secondsPerItem`, then the next one follows; after the last it closes.
 /// Tap the right side or swipe left for the next item, tap the left side or swipe right for the
 /// previous one, swipe down to close, touch and hold to pause.
-struct StoryPlayer<Item: Identifiable, Content: View, Header: View>: View {
+/// With `actions`, a "…" button next to Close offers them for the item on screen.
+struct StoryPlayer<Item: Identifiable, Content: View, Header: View, Actions: View>: View {
     let items: [Item]
     var secondsPerItem: Double = 3
     /// Called whenever an item comes on screen (e.g. to mark a moment as viewed).
     var onShow: (Item) -> Void = { _ in }
+    /// Keeps the current item on screen, e.g. while the caller asks for confirmation.
+    var isHeld = false
     @ViewBuilder var content: (Item) -> Content
     @ViewBuilder var header: (Item) -> Header
+    var actions: ((Item) -> Actions)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var index: Int
@@ -21,14 +25,19 @@ struct StoryPlayer<Item: Identifiable, Content: View, Header: View>: View {
     /// Bumped to restart the timer when "previous" is used on the first item.
     @State private var restartToken = 0
     @State private var width: CGFloat = 0
+    @State private var isShowingActions = false
 
     init(items: [Item], startIndex: Int = 0, secondsPerItem: Double = 3, onShow: @escaping (Item) -> Void = { _ in },
-         @ViewBuilder content: @escaping (Item) -> Content, @ViewBuilder header: @escaping (Item) -> Header) {
+         isHeld: Bool = false,
+         @ViewBuilder content: @escaping (Item) -> Content, @ViewBuilder header: @escaping (Item) -> Header,
+         @ViewBuilder actions: @escaping (Item) -> Actions) {
         self.items = items
         self.secondsPerItem = secondsPerItem
         self.onShow = onShow
+        self.isHeld = isHeld
         self.content = content
         self.header = header
+        self.actions = actions
         _index = State(initialValue: min(max(startIndex, 0), max(items.count - 1, 0)))
     }
 
@@ -76,6 +85,13 @@ struct StoryPlayer<Item: Identifiable, Content: View, Header: View>: View {
             if let current { onShow(current) }
             await runTimer()
         }
+        // An item was removed (e.g. deleted): stay at the same position, close when nothing is left.
+        .onChange(of: items.map(\.id)) { _, ids in
+            if ids.isEmpty { dismiss() } else if index >= ids.count { index = ids.count - 1 }
+            restartToken += 1
+        }
+        // Always on black, so menus and dialogs opened from here are dark too.
+        .environment(\.colorScheme, .dark)
         .statusBarHidden()
     }
 
@@ -87,16 +103,31 @@ struct StoryPlayer<Item: Identifiable, Content: View, Header: View>: View {
                     .shadow(color: .black.opacity(0.5), radius: 4)
             }
             Spacer()
-            Button("Close", systemImage: "xmark") { dismiss() }
-                .labelStyle(.iconOnly)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
+            if let actions, let current {
+                Button { isShowingActions = true } label: { Self.circleIcon("ellipsis") }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.circle)
+                    .accessibilityLabel("More")
+                    .accessibilityIdentifier("playerMoreButton")
+                    .confirmationDialog("", isPresented: $isShowingActions) {
+                        actions(current)
+                    }
+            }
+            Button { dismiss() } label: { Self.circleIcon("xmark") }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
+                .accessibilityLabel("Close")
                 .accessibilityIdentifier("closePlayerButton")
         }
         .padding(16)
+    }
+
+    /// Same-size glyph for every round header button (the ellipsis is shorter than the xmark).
+    private static func circleIcon(_ name: String) -> some View {
+        Image(systemName: name)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(.white)
+            .frame(width: 30, height: 30)
     }
 
     /// Fills the current segment over `secondsPerItem`, then advances.
@@ -106,7 +137,7 @@ struct StoryPlayer<Item: Identifiable, Content: View, Header: View>: View {
         while progress < 1 {
             try? await Task.sleep(for: .seconds(step))
             if Task.isCancelled { return }
-            if !isPaused { progress = min(1, progress + step / secondsPerItem) }
+            if !isPaused && !isShowingActions && !isHeld { progress = min(1, progress + step / secondsPerItem) }
         }
         next()
     }
@@ -125,6 +156,20 @@ struct StoryPlayer<Item: Identifiable, Content: View, Header: View>: View {
         } else {
             restartToken += 1
         }
+    }
+}
+
+extension StoryPlayer where Actions == EmptyView {
+    /// Without a "…" button (friends' moments, highlights).
+    init(items: [Item], startIndex: Int = 0, secondsPerItem: Double = 3, onShow: @escaping (Item) -> Void = { _ in },
+         @ViewBuilder content: @escaping (Item) -> Content, @ViewBuilder header: @escaping (Item) -> Header) {
+        self.items = items
+        self.secondsPerItem = secondsPerItem
+        self.onShow = onShow
+        self.content = content
+        self.header = header
+        self.actions = nil
+        _index = State(initialValue: min(max(startIndex, 0), max(items.count - 1, 0)))
     }
 }
 

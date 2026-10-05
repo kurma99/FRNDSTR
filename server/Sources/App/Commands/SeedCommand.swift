@@ -132,7 +132,21 @@ struct SeedCommand: AsyncCommand {
             }
         }
 
-        return "Seeded \(users.count) users, \(postCount) posts and 3 live moments."
+        // Demo's Memories backup, restored by the app on sign-in: one a day for a week, two yesterday.
+        let names = family.dropFirst().map(\.displayName)
+        for back in [1, 1, 2, 3, 4, 5, 6, 7] {
+            let memory = MemoryDTO(id: UUID(), takenAt: now.addingTimeInterval(-Double(back) * day + Double(random.next(below: 7200))),
+                                   caption: back == 1 ? "Two on one day" : nil, recipientNames: names,
+                                   layout: MomentLayout(), location: nil)
+            let directory = MemoryBackup.directory(for: memory.id, ownerID: ids[0], in: app)
+            try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+            for (variant, size) in [("back", (1080, 1440)), ("front", (720, 960)), ("composite", (1080, 1440)), ("thumb", (270, 360))] {
+                try await images.gradient(width: size.0, height: size.1, to: "\(directory)/\(variant).jpg", random: &random)
+            }
+            try await MemoryBackup(memory, ownerID: ids[0]).create(on: db)
+        }
+
+        return "Seeded \(users.count) users, \(postCount) posts, 3 live moments and 8 memories."
     }
 }
 

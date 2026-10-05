@@ -69,7 +69,7 @@ struct MemoriesView: View {
                 }
             }
         }
-        .fullScreenCover(item: $playback) { playback in
+        .fullScreenCover(item: $playback, onDismiss: { memories = archive?.all() ?? [] }) { playback in
             if let archive {
                 MemoriesPlayerView(memories: playback.memories, startIndex: playback.startIndex, archive: archive)
             }
@@ -240,8 +240,7 @@ struct MemoryDetailView: View {
                     }
                     .confirmationDialog("Delete this memory?", isPresented: $confirmDelete, titleVisibility: .visible) {
                         Button("Delete", role: .destructive) {
-                            try? archive.delete(memory.id)
-                            MemoryBackup.shared.delete(memory.id, using: app)
+                            archive.deleteEverywhere(memory, using: app)
                             onDelete()
                             dismiss()
                         }
@@ -254,14 +253,26 @@ struct MemoryDetailView: View {
     }
 
     private func save() {
-        guard let data = try? Data(contentsOf: archive.fileURL(for: memory.id, .composite)) else { return }
-        Task {
-            do {
-                try await PhotoSaver.saveImage(data, metadata: SaveMetadata(caption: memory.caption, location: memory.location, date: memory.createdAt))
-                status = String(localized: "Saved to Photos")
-            } catch {
-                status = error.localizedDescription
-            }
+        Task { status = await archive.saveToPhotos(memory) }
+    }
+}
+
+extension MomentArchive {
+    /// Removes a memory from this iPhone and from the server backup.
+    func deleteEverywhere(_ memory: ArchivedMoment, using app: AppModel) {
+        try? delete(memory.id)
+        MemoryBackup.shared.delete(memory.id, using: app)
+    }
+
+    /// Saves the composite to Photos; returns the message to show.
+    func saveToPhotos(_ memory: ArchivedMoment) async -> String {
+        do {
+            let data = try Data(contentsOf: fileURL(for: memory.id, .composite))
+            try await PhotoSaver.saveImage(data, metadata: SaveMetadata(caption: memory.caption, location: memory.location,
+                                                                        date: memory.createdAt))
+            return String(localized: "Saved to Photos")
+        } catch {
+            return error.localizedDescription
         }
     }
 }
