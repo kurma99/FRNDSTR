@@ -5,10 +5,12 @@ import Testing
 import VaporTesting
 
 private func call(_ app: Application, _ method: HTTPMethod, _ path: String, token: String,
+                  timeZone: String? = nil,
                   json: (any Encodable)? = nil) async throws -> (status: HTTPStatus, body: Data) {
     var result: (HTTPStatus, Data) = (.internalServerError, Data())
     try await app.testing().test(method, path, beforeRequest: { req in
         req.headers.bearerAuthorization = BearerAuthorization(token: token)
+        if let timeZone { req.headers.replaceOrAdd(name: API.timeZoneHeader, value: timeZone) }
         if let json {
             req.headers.contentType = .json
             req.body = ByteBuffer(data: try API.makeEncoder().encode(json))
@@ -124,6 +126,57 @@ struct InboxTests {
                 #expect((9..<21).contains(hour))
             }
             #expect(days.key(for: first.tomorrow) == days.key(for: days.adding(days: 1, to: .now)))
+        }
+    }
+
+    /// The point of the feature: one shared reading, each person's own clock.
+    @Test func landsAtTheSameReadingInEveryZone() async throws {
+        try await withTestApp { app, _ in
+            let berlin = TimeZone(identifier: "Europe/Berlin")!
+            let tokyo = TimeZone(identifier: "Asia/Tokyo")!
+            try await InstanceSetting(key: MomentTime.key(forDay: "2026-10-29"),
+                                      value: String(14 * 60 + 37)).create(on: app.db)
+
+            var times: [Date] = []
+            for zone in [berlin, tokyo] {
+                let days = ServerDay(timeZone: zone)
+                let time = try await MomentTime.time(for: days.date(forKey: "2026-10-29")!, in: zone, on: app.db)
+                #expect(days.calendar.component(.hour, from: time) == 14)
+                #expect(days.calendar.component(.minute, from: time) == 37)
+                times.append(time)
+            }
+            // Same reading, eight hours apart.
+            #expect(times[0].timeIntervalSince(times[1]) == 8 * 3600)
+        }
+    }
+
+    /// 25 Oct 2026 is 25 hours long in Berlin; counting seconds from midnight would read 13:37.
+    @Test func survivesTheDaylightSavingChangeover() async throws {
+        try await withTestApp { app, _ in
+            let berlin = TimeZone(identifier: "Europe/Berlin")!
+            let days = ServerDay(timeZone: berlin)
+            try await InstanceSetting(key: MomentTime.key(forDay: "2026-10-25"),
+                                      value: String(14 * 60 + 37)).create(on: app.db)
+
+            let time = try await MomentTime.time(for: days.date(forKey: "2026-10-25")!, in: berlin, on: app.db)
+            #expect(days.calendar.component(.hour, from: time) == 14)
+            #expect(days.calendar.component(.minute, from: time) == 37)
+        }
+    }
+
+    @Test func remembersTheZoneTheAppReports() async throws {
+        try await withTestApp { app, _ in
+            let anna = try await signUp(app, username: "anna")
+            let reported = try value(MomentTimeDTO.self,
+                                     try await call(app, .GET, API.Path.momentTime, token: anna, timeZone: "Asia/Tokyo"))
+            let user = try #require(try await User.query(on: app.db).filter(\.$username == "anna").first())
+            #expect(user.timeZoneName == "Asia/Tokyo")
+
+            let tokyo = ServerDay(timeZone: TimeZone(identifier: "Asia/Tokyo")!)
+            #expect(tokyo.key(for: reported.today) == tokyo.key(for: .now))
+
+            // An older build sends no header: the remembered zone stands in, same answer.
+            #expect(try value(MomentTimeDTO.self, try await call(app, .GET, API.Path.momentTime, token: anna)) == reported)
         }
     }
 }

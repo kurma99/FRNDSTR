@@ -359,6 +359,9 @@ struct APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Lets the server put the daily moment at the same hour wherever we are, and keeps it
+        // up to date when we travel.
+        request.setValue(TimeZone.current.identifier, forHTTPHeaderField: API.timeZoneHeader)
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }

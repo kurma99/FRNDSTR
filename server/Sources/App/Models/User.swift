@@ -14,10 +14,18 @@ final class User: Model, Authenticatable, @unchecked Sendable {
     /// File name inside `<media dir>/avatars/<user id>/`; a new name per upload busts caches.
     @OptionalField(key: "avatar_file") var avatarFile: String?
     @OptionalField(key: "is_admin") var isAdminValue: Bool?
+    /// Where this person last opened the app, as an IANA identifier (`Frndstr-Time-Zone`).
+    /// `nil` until they run a build that sends it.
+    @OptionalField(key: "time_zone") var timeZoneName: String?
 
     var isAdmin: Bool {
         get { isAdminValue ?? false }
         set { isAdminValue = newValue }
+    }
+
+    /// The zone the daily moment should land in for this person, falling back to the instance's.
+    func timeZone(default fallback: TimeZone) -> TimeZone {
+        timeZoneName.flatMap(TimeZone.init(identifier:)) ?? fallback
     }
 
     init() {}
@@ -51,5 +59,16 @@ struct CreateUsers: AsyncMigration {
 
     func revert(on database: any Database) async throws {
         try await database.schema(User.schema).delete()
+    }
+}
+
+/// Per-person time zone, so the shared moment time is the same hour wherever each person is (M8).
+struct AddUserTimeZone: AsyncMigration {
+    func prepare(on database: any Database) async throws {
+        try await database.schema(User.schema).field("time_zone", .string).update()
+    }
+
+    func revert(on database: any Database) async throws {
+        try await database.schema(User.schema).deleteField("time_zone").update()
     }
 }

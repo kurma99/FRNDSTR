@@ -14,7 +14,8 @@ services:
       DATA_DIR: /data
       # Shown in the app when connecting.
       INSTANCE_NAME: Frndstr
-      # Defines "today" for the moments rule (IANA name).
+      # Defines "today" for the moments rule and streaks (IANA name). The daily moment time
+      # itself follows each person's own zone, so travellers don't get woken at 05:00.
       TIME_ZONE: Europe/Berlin
       # trace, debug, info, notice, warning, error, critical
       LOG_LEVEL: info

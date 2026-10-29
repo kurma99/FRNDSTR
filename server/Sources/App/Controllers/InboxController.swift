@@ -36,14 +36,34 @@ struct InboxController: RouteCollection {
 
     // MARK: Moment time
 
+    /// Everyone shares one random time of day; each person gets it in their own zone, so a
+    /// 14:37 moment is 14:37 in Berlin and 14:37 in Tokyo rather than 22:37 there.
     @Sendable
     func momentTime(req: Request) async throws -> MomentTimeDTO {
-        let days = ServerDay(timeZone: req.application.appConfig.timeZone)
+        let zone = try await Self.callerTimeZone(req)
+        let days = ServerDay(timeZone: zone)
         let today = days.startOfDay(.now)
         return MomentTimeDTO(
-            today: try await MomentTime.time(for: today, days: days, on: req.db),
-            tomorrow: try await MomentTime.time(for: days.adding(days: 1, to: today), days: days, on: req.db)
+            today: try await MomentTime.time(for: today, in: zone, on: req.db),
+            tomorrow: try await MomentTime.time(for: days.adding(days: 1, to: today), in: zone, on: req.db)
         )
+    }
+
+    /// The zone the app reports, remembered on the user so the server still knows where someone
+    /// is between requests (and can push at the right time once APNs lands). Older app builds
+    /// send no header, so their last known zone — or the instance's — is used.
+    private static func callerTimeZone(_ req: Request) async throws -> TimeZone {
+        let user = try req.auth.require(User.self)
+        let fallback = req.application.appConfig.timeZone
+        guard let name = req.headers.first(name: API.timeZoneHeader),
+              let zone = TimeZone(identifier: name)
+        else { return user.timeZone(default: fallback) }
+
+        if user.timeZoneName != name {
+            user.timeZoneName = name
+            try await user.save(on: req.db)
+        }
+        return zone
     }
 
     // MARK: Streaks
@@ -77,38 +97,57 @@ struct InboxController: RouteCollection {
 }
 
 /// The family's shared random "time for your moment", one per day, picked on first request.
+///
+/// What's stored is the *minute of the day* (0..<1440), not an instant, and it's keyed by the
+/// calendar date alone. Two people on the same date therefore get the same reading on their own
+/// clocks; whoever's date rolls over first picks it for everybody.
 enum MomentTime {
     static let windowKey = "moment_window"
 
-    static func key(for day: Date, days: ServerDay) -> String { "moment_time.\(days.key(for: day))" }
+    /// `moment_minute.2026-10-29`. The old `moment_time.` keys held absolute instants and are
+    /// simply left behind: a server that upgrades mid-day re-picks once, in everyone's own zone.
+    static func key(forDay dayKey: String) -> String { "moment_minute.\(dayKey)" }
 
     /// Admin (web dashboard): tomorrow's time is re-picked in the new window; today's stays as announced.
+    /// "Tomorrow" is the instance zone's — close enough for an admin action, and it only ever
+    /// discards a time that hasn't been announced yet.
     static func setWindow(_ window: MomentWindow, app: Application) async throws {
         try await InstanceSetting.set(windowKey, to: window, on: app.db)
         let days = ServerDay(timeZone: app.appConfig.timeZone)
-        let tomorrow = days.adding(days: 1, to: days.startOfDay(.now))
-        try await InstanceSetting.find(key(for: tomorrow, days: days), on: app.db)?.delete(on: app.db)
+        let tomorrow = days.key(for: days.adding(days: 1, to: days.startOfDay(.now)))
+        try await InstanceSetting.find(key(forDay: tomorrow), on: app.db)?.delete(on: app.db)
     }
 
     static func window(on db: any Database) async throws -> MomentWindow {
         try await InstanceSetting.get(windowKey, as: MomentWindow.self, on: db) ?? .default
     }
 
-    static func time(for day: Date, days: ServerDay, on db: any Database) async throws -> Date {
-        let key = key(for: day, days: days)
-        if let stored = try await InstanceSetting.find(key, on: db), let seconds = Double(stored.value) {
-            return Date(timeIntervalSince1970: seconds)
+    /// The shared minute of the day for a calendar date, picked on first ask.
+    static func minute(forDay dayKey: String, on db: any Database) async throws -> Int {
+        let key = key(forDay: dayKey)
+        if let stored = try await InstanceSetting.find(key, on: db), let minute = Int(stored.value) {
+            return minute
         }
         let window = try await window(on: db)
         let minute = Int.random(in: (window.startHour * 60)..<(window.endHour * 60))
-        let time = days.startOfDay(day).addingTimeInterval(TimeInterval(minute * 60))
         do {
-            try await InstanceSetting(key: key, value: String(time.timeIntervalSince1970)).create(on: db)
-            return time
+            try await InstanceSetting(key: key, value: String(minute)).create(on: db)
+            return minute
         } catch {
             // Another request picked it at the same moment: use theirs so everyone gets the same time.
-            guard let stored = try await InstanceSetting.find(key, on: db), let seconds = Double(stored.value) else { throw error }
-            return Date(timeIntervalSince1970: seconds)
+            guard let stored = try await InstanceSetting.find(key, on: db), let minute = Int(stored.value) else { throw error }
+            return minute
         }
+    }
+
+    /// When the moment lands for someone in `timeZone`, on `day` as their own calendar sees it.
+    static func time(for day: Date, in timeZone: TimeZone, on db: any Database) async throws -> Date {
+        let days = ServerDay(timeZone: timeZone)
+        let minute = try await minute(forDay: days.key(for: day), on: db)
+        let startOfDay = days.startOfDay(day)
+        // Setting the components rather than adding seconds keeps the wall-clock reading right
+        // on the two days a year a zone shifts.
+        return days.calendar.date(bySettingHour: minute / 60, minute: minute % 60, second: 0, of: startOfDay)
+            ?? startOfDay.addingTimeInterval(TimeInterval(minute * 60))
     }
 }

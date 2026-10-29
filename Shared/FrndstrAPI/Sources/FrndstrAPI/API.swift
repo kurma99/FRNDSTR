@@ -104,6 +104,10 @@ public enum API {
     /// Query parameter that can carry the bearer token for media URLs (used by AVPlayer).
     public static let mediaTokenQueryItem = "token"
 
+    /// The app's IANA time zone (e.g. `Asia/Tokyo`), sent on every request. The daily moment
+    /// fires at the same wall-clock time in everyone's own zone, so the server needs to know it.
+    public static let timeZoneHeader = "Frndstr-Time-Zone"
+
     public static func makeEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

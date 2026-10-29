@@ -25,6 +25,9 @@ func configure(_ app: Application, config: AppConfig = .fromEnvironment()) async
     app.migrations.add(CreateFriendships())
     app.migrations.add(AddPostLocation())
     app.migrations.add(AddUserAvatar())
+    // Out of milestone order on purpose: `AddUserAdmin` queries the `User` model, so every one
+    // of its columns has to exist by the time it runs on a fresh database.
+    app.migrations.add(AddUserTimeZone())
     app.migrations.add(CreateInstanceSettings())
     app.migrations.add(AddUserAdmin())
     app.migrations.add(CreateMoments())

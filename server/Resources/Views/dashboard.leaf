@@ -134,7 +134,7 @@
         </select></label>
         <button class="primary" type="submit">Save</button>
       </form>
-      <p class="muted">Every day one random time in this window is sent to everyone (time zone #(timeZone)). Changes apply from tomorrow.</p>
+      <p class="muted">Every day one random time in this window goes to everyone, read on each person's own clock: 14:37 is 14:37 in Berlin and 14:37 in Tokyo. Days and streaks still follow the server's time zone (#(timeZone)). Changes apply from tomorrow.</p>
     </section>
   </main>
   #endexport
