@@ -11,6 +11,7 @@ struct MemoryController: RouteCollection {
                                                                  + API.Memories.maxThumbnailBytes + 64 * 1024)),
                     use: upload)
         memories.delete(":memoryID", use: delete)
+        memories.patch(":memoryID", use: setTimeZone)
 
         // Photos are loaded like other media, so the query token is allowed.
         routes.grouped("memories").grouped(TokenAuthenticator(allowQueryToken: true), User.guardMiddleware())
@@ -89,6 +90,27 @@ struct MemoryController: RouteCollection {
         } catch {
             try? await row.delete(on: req.db)
             throw error
+        }
+        // A memory from before per-place days arrives already knowing its zone (backup turned on late).
+        if row.timeZoneName != nil {
+            try await DayRefiling.refile(after: row, app: req.application, on: req.db)
+        }
+        return try row.toDTO()
+    }
+
+    /// The phone looked up the zone of an older memory's place; its streak day moves to that date.
+    @Sendable
+    func setTimeZone(req: Request) async throws -> MemoryDTO {
+        let ownerID = try req.auth.require(User.self).requireID()
+        let row = try await Self.ownMemory(req, ownerID: ownerID)
+        let name = try req.content.decode(UpdateMemoryRequest.self).timeZone
+        guard row.latitude != nil, let zone = TimeZone(identifier: name) else {
+            throw Abort(.badRequest, reason: "Only memories with a place can have a time zone.")
+        }
+        if row.timeZoneName != zone.identifier {
+            row.timeZoneName = zone.identifier
+            try await row.save(on: req.db)
+            try await DayRefiling.refile(after: row, app: req.application, on: req.db)
         }
         return try row.toDTO()
     }

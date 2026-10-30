@@ -84,7 +84,11 @@ struct MomentController: RouteCollection {
         moment.latitude = body.location?.latitude
         moment.longitude = body.location?.longitude
         moment.placeName = body.location?.placeName
-        let dayKey = ServerDay(timeZone: req.application.appConfig.timeZone).key(for: .now)
+        // The moment counts for the calendar date where it was taken: the place's zone when the
+        // phone found one, else the phone's own. The key is stored, so flying home later doesn't move it.
+        let phoneZone = try await req.rememberCallerTimeZone()
+        let placeZone = body.location?.timeZone.flatMap(TimeZone.init(identifier:))
+        let dayKey = ServerDay(timeZone: placeZone ?? phoneZone).key(for: .now)
         try await req.db.transaction { db in
             try await moment.create(on: db)
             for recipient in recipientIDs {
@@ -187,11 +191,9 @@ struct MomentController: RouteCollection {
         return Set(rows.map { $0.$requester.id == userID ? $0.$addressee.id : $0.$requester.id })
     }
 
-    /// Start of the current day in the server's time zone.
+    /// Start of the current day where the viewer (the caller) is.
     static func startOfToday(_ req: Request) -> Date {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = req.application.appConfig.timeZone
-        return calendar.startOfDay(for: .now)
+        ServerDay(timeZone: req.callerTimeZone).startOfDay(.now)
     }
 
     static func hasPostedToday(_ userID: UUID, req: Request) async throws -> Bool {

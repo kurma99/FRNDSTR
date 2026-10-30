@@ -72,7 +72,8 @@ final class MomentDay: Model, @unchecked Sendable {
     @ID(key: .id) var id: UUID?
     @Field(key: "sender_id") var senderID: UUID
     @Field(key: "recipient_id") var recipientID: UUID
-    /// `yyyy-MM-dd` in the server time zone.
+    /// `yyyy-MM-dd` where the moment was taken. Rows from before `DayRefiling.cutoverKey` were filed
+    /// in the server's `TIME_ZONE` and may be re-filed once the sender's phone reports the place's zone.
     @Field(key: "day") var day: String
 
     init() {}

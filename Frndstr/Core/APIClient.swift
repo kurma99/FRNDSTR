@@ -267,6 +267,11 @@ struct APIClient {
         let _: Empty = try await send("DELETE", API.Path.memory(id))
     }
 
+    /// Tells the server the zone of an older memory's place, so its streak day moves to that date.
+    func setMemoryTimeZone(_ id: UUID, _ timeZone: TimeZone) async throws {
+        let _: MemoryDTO = try await send("PATCH", API.Path.memory(id), body: UpdateMemoryRequest(timeZone: timeZone.identifier))
+    }
+
     /// One of a backed-up memory's photos (`API.Memories.variants`).
     func memoryFile(_ id: UUID, _ variant: String) async throws -> Data {
         let request = makeRequest("GET", url(API.Path.memoryFile(id, variant)))

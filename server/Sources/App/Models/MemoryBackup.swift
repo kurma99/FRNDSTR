@@ -20,6 +20,8 @@ final class MemoryBackup: Model, @unchecked Sendable {
     @OptionalField(key: "latitude") var latitude: Double?
     @OptionalField(key: "longitude") var longitude: Double?
     @OptionalField(key: "place_name") var placeName: String?
+    /// IANA zone of the place; decides which calendar day the moment counts for.
+    @OptionalField(key: "time_zone") var timeZoneName: String?
     @Timestamp(key: "created_at", on: .create) var createdAt: Date?
 
     init() {}
@@ -36,6 +38,7 @@ final class MemoryBackup: Model, @unchecked Sendable {
         self.latitude = memory.location?.latitude
         self.longitude = memory.location?.longitude
         self.placeName = memory.location?.placeName
+        self.timeZoneName = memory.location?.timeZone.flatMap(TimeZone.init(identifier:))?.identifier
     }
 
     func toDTO() throws -> MemoryDTO {
@@ -43,7 +46,9 @@ final class MemoryBackup: Model, @unchecked Sendable {
         let layout = insetCorner.flatMap(MomentLayout.Corner.init(rawValue:)).map {
             MomentLayout(insetCorner: $0, swapped: swapped ?? false, insetSize: insetSize)
         }
-        let location = latitude.flatMap { lat in longitude.map { PostLocation(latitude: lat, longitude: $0, placeName: placeName) } }
+        let location = latitude.flatMap { lat in
+            longitude.map { PostLocation(latitude: lat, longitude: $0, placeName: placeName, timeZone: timeZoneName) }
+        }
         return MemoryDTO(id: try requireID(), takenAt: takenAt, caption: caption, recipientNames: names,
                          layout: layout, location: location)
     }
@@ -79,5 +84,15 @@ struct CreateMemoryBackups: AsyncMigration {
 
     func revert(on database: any Database) async throws {
         try await database.schema(MemoryBackup.schema).delete()
+    }
+}
+
+struct AddMemoryTimeZone: AsyncMigration {
+    func prepare(on database: any Database) async throws {
+        try await database.schema(MemoryBackup.schema).field("time_zone", .string).update()
+    }
+
+    func revert(on database: any Database) async throws {
+        try await database.schema(MemoryBackup.schema).deleteField("time_zone").update()
     }
 }

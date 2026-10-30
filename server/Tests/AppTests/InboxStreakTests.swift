@@ -207,4 +207,77 @@ struct InboxTests {
             #expect(!bens[0].sentToday && bens[0].receivedToday)
         }
     }
+
+    /// 23:30 in Berlin on 8 Oct was 06:30 in Tokyo on 9 Oct: once the phone reports the place's zone,
+    /// the old Berlin-dated entry moves to the 9th. One without a place, and anything from the cutover
+    /// date on, stays where it is.
+    @Test func oldDaysAreRefiledWhereTheyWereTaken() async throws {
+        try await withTestApp { app, _ in
+            let anna = try await signUp(app, username: "anna")
+            let ben = try await signUp(app, username: "ben")
+            let annaID = try await id(app, anna), benID = try await id(app, ben)
+            let berlin = ServerDay(timeZone: app.appConfig.timeZone)
+            let takenInTokyo = berlin.date(forKey: "2026-10-08")!.addingTimeInterval(23.5 * 3600)
+            let tokyoBackup = try MemoryBackup(MemoryDTO(
+                id: UUID(), takenAt: takenInTokyo, caption: nil, recipientNames: ["Anna"], layout: nil,
+                location: PostLocation(latitude: 35.68, longitude: 139.76, placeName: "Tokyo, Japan")), ownerID: annaID)
+            try await tokyoBackup.create(on: app.db)
+            try await MomentDay(senderID: annaID, recipientID: benID, day: "2026-10-08").create(on: app.db)
+
+            let patch = API.Path.memory(try tokyoBackup.requireID())
+            let moved = try await call(app, .PATCH, patch, token: anna, json: UpdateMemoryRequest(timeZone: "Asia/Tokyo"))
+            #expect(try value(MemoryDTO.self, moved).location?.timeZone == "Asia/Tokyo")
+            #expect(try await MomentDay.query(on: app.db).all().map(\.day) == ["2026-10-09"])
+            // Reporting the same zone again changes nothing.
+            _ = try await call(app, .PATCH, patch, token: anna, json: UpdateMemoryRequest(timeZone: "Asia/Tokyo"))
+            #expect(try await MomentDay.query(on: app.db).count() == 1)
+
+            // Without a place there's nothing to look up: it keeps its home date.
+            let placeless = try MemoryBackup(MemoryDTO(id: UUID(), takenAt: takenInTokyo, caption: nil,
+                                                       recipientNames: ["Anna"], layout: nil, location: nil), ownerID: annaID)
+            try await placeless.create(on: app.db)
+            let rejected = try await call(app, .PATCH, API.Path.memory(try placeless.requireID()), token: anna,
+                                          json: UpdateMemoryRequest(timeZone: "Asia/Tokyo"))
+            #expect(rejected.status == .badRequest)
+
+            // Today is past the cutover: already filed the new way, never moved.
+            let todayKey = berlin.key(for: .now)
+            let recent = try MemoryBackup(MemoryDTO(
+                id: UUID(), takenAt: .now, caption: nil, recipientNames: ["Anna"], layout: nil,
+                location: PostLocation(latitude: 21.3, longitude: -157.8, placeName: "Honolulu")), ownerID: annaID)
+            try await recent.create(on: app.db)
+            try await MomentDay(senderID: annaID, recipientID: benID, day: todayKey).create(on: app.db)
+            _ = try await call(app, .PATCH, API.Path.memory(try recent.requireID()), token: anna,
+                               json: UpdateMemoryRequest(timeZone: "Pacific/Honolulu"))
+            #expect(try await MomentDay.query(on: app.db).filter(\.$day == todayKey).count() == 1)
+
+            // Someone else's memory looks like a missing one.
+            #expect(try await call(app, .PATCH, patch, token: ben, json: UpdateMemoryRequest(timeZone: "Asia/Tokyo")).status == .notFound)
+        }
+    }
+
+    /// Anna is a day ahead (Kiritimati, UTC+14) of Ben (Pago Pago, UTC−11). The day still open for
+    /// both of them is Ben's, so their shared moments on it count as "today" from Anna's side too.
+    @Test func todayIsTheEarlierOfTheTwoDates() async throws {
+        try await withTestApp { app, _ in
+            let anna = try await signUp(app, username: "anna")
+            let ben = try await signUp(app, username: "ben")
+            let annaID = try await id(app, anna), benID = try await id(app, ben)
+            _ = try await call(app, .POST, API.Path.friend(benID), token: anna)
+            _ = try await call(app, .POST, API.Path.friend(annaID), token: ben, timeZone: "Pacific/Pago_Pago")
+
+            let bensDays = ServerDay(timeZone: TimeZone(identifier: "Pacific/Pago_Pago")!)
+            for offset in 0...1 {
+                let key = bensDays.key(for: bensDays.adding(days: -offset, to: .now))
+                try await MomentDay(senderID: annaID, recipientID: benID, day: key).create(on: app.db)
+                try await MomentDay(senderID: benID, recipientID: annaID, day: key).create(on: app.db)
+            }
+
+            for (token, zone) in [(anna, "Pacific/Kiritimati"), (ben, "Pacific/Pago_Pago")] {
+                let streak = try value([StreakDTO].self, try await call(app, .GET, API.Path.streaks, token: token, timeZone: zone))[0]
+                #expect(streak.count == 2)
+                #expect(streak.sentToday && streak.receivedToday && !streak.isAtRisk)
+            }
+        }
+    }
 }

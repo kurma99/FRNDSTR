@@ -39,6 +39,7 @@ func configure(_ app: Application, config: AppConfig = .fromEnvironment()) async
     app.migrations.add(CreateHighlights())
     app.migrations.add(CreateMemoryBackups())
     app.migrations.add(AddMomentPostMediaList())
+    app.migrations.add(AddMemoryTimeZone())
 
     // Same ISO-8601 dates as the app.
     ContentConfiguration.global.use(encoder: API.makeEncoder(), for: .json)
@@ -54,6 +55,7 @@ func configure(_ app: Application, config: AppConfig = .fromEnvironment()) async
     app.sessions.configuration.cookieName = "frndstr-admin"
 
     try await app.autoMigrate()
+    try await DayRefiling.markCutover(on: app.db)
     try await Bootstrap.announceSetup(on: app)
     try routes(app)
 }

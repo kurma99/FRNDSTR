@@ -1,6 +1,6 @@
 import Foundation
 
-/// "Days" as the family experiences them: calendar days in the server's `TIME_ZONE`, weeks starting Monday.
+/// Calendar days in one time zone (someone's own, or `TIME_ZONE`), weeks starting Monday.
 struct ServerDay: Sendable {
     let calendar: Calendar
 

@@ -195,11 +195,15 @@ public struct PostLocation: Codable, Sendable, Equatable, Hashable {
     public var longitude: Double
     /// Human-readable place, e.g. "Hamburg, Germany".
     public var placeName: String?
+    /// IANA time zone of the place, e.g. `Asia/Tokyo`, found together with the place name.
+    /// A moment counts for the calendar day it was taken *there*.
+    public var timeZone: String?
 
-    public init(latitude: Double, longitude: Double, placeName: String?) {
+    public init(latitude: Double, longitude: Double, placeName: String?, timeZone: String? = nil) {
         self.latitude = latitude
         self.longitude = longitude
         self.placeName = placeName
+        self.timeZone = timeZone
     }
 }
 
@@ -586,6 +590,16 @@ public struct MemoryDTO: Codable, Sendable, Equatable, Hashable, Identifiable {
     }
 }
 
+/// `PATCH /api/memories/{id}`: the time zone of a backed-up memory's place, looked up by the phone
+/// for memories taken before places carried one. The server re-files that day's streak entry.
+public struct UpdateMemoryRequest: Codable, Sendable, Equatable {
+    public var timeZone: String
+
+    public init(timeZone: String) {
+        self.timeZone = timeZone
+    }
+}
+
 // MARK: - Notifications inbox
 
 public enum EventType: String, Codable, Sendable, CaseIterable {
@@ -649,9 +663,10 @@ public struct StreakDTO: Codable, Sendable, Equatable, Identifiable {
     public var friend: UserDTO
     /// Consecutive days on which you both sent each other a moment (one forgiven miss per week).
     public var count: Int
-    /// You already sent this friend a moment today.
+    /// You already sent this friend a moment today. "Today" is the pair's open day: the earlier of
+    /// your two calendar dates, so a day only closes once it's over for both of you.
     public var sentToday: Bool
-    /// This friend already sent you a moment today.
+    /// This friend already sent you a moment today (the same open day).
     public var receivedToday: Bool
     /// The one forgiven missed day of this week is already used.
     public var graceUsedThisWeek: Bool

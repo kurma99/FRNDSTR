@@ -7,9 +7,8 @@ struct AppConfig: Sendable {
     var dataDirectory: String
     var ffmpegPath: String
     var ffprobePath: String
-    /// Defines "today" for the moments rule and streaks, and stands in for anyone whose app
-    /// hasn't reported a zone yet. The daily moment time itself follows each person's own zone.
-    /// Set `TIME_ZONE`, e.g. `Europe/Berlin`.
+    /// The home zone: stands in for anyone whose app hasn't reported where they are yet. Moment
+    /// times, days and streaks otherwise follow each person's own zone. Set `TIME_ZONE`, e.g. `Europe/Berlin`.
     var timeZone: TimeZone
     var zipPath: String = AppConfig.findExecutable("zip") ?? "/usr/bin/zip"
     /// Optional: writes caption/location into photos in takeout zips.

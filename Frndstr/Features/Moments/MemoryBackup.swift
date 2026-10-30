@@ -81,7 +81,32 @@ final class MemoryBackup {
                 continue
             }
         }
+
+        await fillInTimeZones(remote, client: client)
         return restored
+    }
+
+    /// Lookups per sync: Apple throttles reverse geocoding, and the rest simply follows next time.
+    private static let timeZoneLookupsPerSync = 20
+
+    /// Memories from before places carried a time zone: looks up each place once, so the server can
+    /// move that day's streak entry to the date where the moment was taken. Ones without a place stay
+    /// on the home date.
+    private static func fillInTimeZones(_ remote: [MemoryDTO], client: APIClient) async {
+        let missing = remote.filter { $0.location != nil && $0.location?.timeZone == nil }
+        for memory in missing.prefix(timeZoneLookupsPerSync) {
+            // Offline or throttled lookups just come back next sync.
+            guard let location = memory.location,
+                  let zone = await LocationProvider.place(latitude: location.latitude, longitude: location.longitude).timeZone
+            else { continue }
+            do {
+                try await client.setMemoryTimeZone(memory.id, zone)
+            } catch is CancellationError {
+                return
+            } catch {
+                continue
+            }
+        }
     }
 
     private static func flushDeletes(client: APIClient) async {

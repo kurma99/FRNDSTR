@@ -37,7 +37,8 @@ private func befriend(_ app: Application, _ a: String, _ b: String) async throws
 private func sendMoment(_ app: Application, token: String, jpeg: Data, to recipients: [UUID],
                         caption: String? = nil, layout: MomentLayout? = nil,
                         postMediaID: UUID? = nil, postMediaIDs: [UUID]? = nil,
-                        location: PostLocation? = nil, clientID: UUID? = nil) async throws -> (status: HTTPStatus, body: Data) {
+                        location: PostLocation? = nil, clientID: UUID? = nil,
+                        phoneTimeZone: String? = nil) async throws -> (status: HTTPStatus, body: Data) {
     let boundary = "Boundary-\(UUID().uuidString)"
     var body = Data()
     func part(_ name: String, filename: String?, type: String, data: Data) {
@@ -60,6 +61,7 @@ private func sendMoment(_ app: Application, token: String, jpeg: Data, to recipi
     try await app.testing().test(.POST, API.Path.moments, beforeRequest: { req in
         req.headers.bearerAuthorization = BearerAuthorization(token: token)
         req.headers.replaceOrAdd(name: .contentType, value: "multipart/form-data; boundary=\(boundary)")
+        if let phoneTimeZone { req.headers.replaceOrAdd(name: API.timeZoneHeader, value: phoneTimeZone) }
         req.body = ByteBuffer(data: body)
     }, afterResponse: { res in
         result = (res.status, Data(buffer: res.body))
@@ -110,6 +112,30 @@ struct MomentTests {
             let annaFeed = try decoded(MomentsFeed.self, try await request(app, .GET, API.Path.moments, token: anna))
             let recipient = try #require(annaFeed.sent.first { $0.id == moment.id }?.recipients?.first)
             #expect(recipient.viewedAt != nil && recipient.screenshotAt != nil)
+        }
+    }
+
+    /// Kiritimati (UTC+14) and Pago Pago (UTC−11) are always on different dates, so this can't pass by luck.
+    @Test func countsForTheDateWhereItWasTaken() async throws {
+        try await withTestApp { app, dir in
+            let anna = try await signUp(app, username: "anna")
+            let ben = try await signUp(app, username: "ben")
+            try await befriend(app, anna, ben)
+            let annaID = try await userID(app, anna), benID = try await userID(app, ben)
+            let jpeg = try await makeSample("z.jpg", in: dir, args: ["-f", "lavfi", "-i", "color=green:s=32x32", "-frames:v", "1"])
+            let kiritimati = ServerDay(timeZone: TimeZone(identifier: "Pacific/Kiritimati")!).key(for: .now)
+            let pagoPago = ServerDay(timeZone: TimeZone(identifier: "Pacific/Pago_Pago")!).key(for: .now)
+
+            // The place's zone wins over the phone's...
+            let there = PostLocation(latitude: 1.87, longitude: -157.4, placeName: "Kiritimati", timeZone: "Pacific/Kiritimati")
+            #expect(try await sendMoment(app, token: anna, jpeg: jpeg, to: [benID], location: there,
+                                         phoneTimeZone: "Pacific/Pago_Pago").status == .ok)
+            // ...and without a location the phone's zone is used.
+            #expect(try await sendMoment(app, token: ben, jpeg: jpeg, to: [annaID], phoneTimeZone: "Pacific/Pago_Pago").status == .ok)
+
+            let days = try await MomentDay.query(on: app.db).all()
+            #expect(days.first { $0.senderID == annaID }?.day == kiritimati)
+            #expect(days.first { $0.senderID == benID }?.day == pagoPago)
         }
     }
 

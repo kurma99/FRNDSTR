@@ -60,19 +60,21 @@ enum LocationProvider {
         manager.authorizationStatus == .notDetermined
     }
 
-    /// A short place name like "Hamburg, Germany", or `nil` if the lookup fails.
-    static func placeName(latitude: Double, longitude: Double) async -> String? {
+    /// A short place name like "Hamburg, Germany" and the place's time zone; `nil`s if the lookup fails.
+    static func place(latitude: Double, longitude: Double) async -> (name: String?, timeZone: TimeZone?) {
         let location = CLLocation(latitude: latitude, longitude: longitude)
         guard let request = MKReverseGeocodingRequest(location: location),
               let item = try? await request.mapItems.first
-        else { return nil }
-        return item.addressRepresentations?.cityWithContext ?? item.name
+        else { return (nil, nil) }
+        return (item.addressRepresentations?.cityWithContext ?? item.name, item.timeZone)
     }
 
-    /// Adds a place name to a coordinate.
+    /// Adds a place name and time zone to a coordinate. Without a zone the server falls back to the phone's.
     static func named(_ location: PostLocation) async -> PostLocation {
         var named = location
-        named.placeName = await placeName(latitude: location.latitude, longitude: location.longitude)
+        let place = await place(latitude: location.latitude, longitude: location.longitude)
+        named.placeName = place.name
+        named.timeZone = place.timeZone?.identifier
         return named
     }
 }

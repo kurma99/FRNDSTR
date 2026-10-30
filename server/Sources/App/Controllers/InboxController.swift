@@ -40,7 +40,7 @@ struct InboxController: RouteCollection {
     /// 14:37 moment is 14:37 in Berlin and 14:37 in Tokyo rather than 22:37 there.
     @Sendable
     func momentTime(req: Request) async throws -> MomentTimeDTO {
-        let zone = try await Self.callerTimeZone(req)
+        let zone = try await req.rememberCallerTimeZone()
         let days = ServerDay(timeZone: zone)
         let today = days.startOfDay(.now)
         return MomentTimeDTO(
@@ -49,25 +49,11 @@ struct InboxController: RouteCollection {
         )
     }
 
-    /// The zone the app reports, remembered on the user so the server still knows where someone
-    /// is between requests (and can push at the right time once APNs lands). Older app builds
-    /// send no header, so their last known zone — or the instance's — is used.
-    private static func callerTimeZone(_ req: Request) async throws -> TimeZone {
-        let user = try req.auth.require(User.self)
-        let fallback = req.application.appConfig.timeZone
-        guard let name = req.headers.first(name: API.timeZoneHeader),
-              let zone = TimeZone(identifier: name)
-        else { return user.timeZone(default: fallback) }
-
-        if user.timeZoneName != name {
-            user.timeZoneName = name
-            try await user.save(on: req.db)
-        }
-        return zone
-    }
-
     // MARK: Streaks
 
+    /// Day keys are calendar dates in the sender's own zone (see `MomentController.create`). For a
+    /// pair, "today" is the earlier of the two people's dates: Tokyo's 9 Oct doesn't close 8 Oct
+    /// while it's still 8 Oct in Berlin.
     @Sendable
     func streaks(req: Request) async throws -> [StreakDTO] {
         let userID = try req.auth.require(User.self).requireID()
@@ -79,15 +65,19 @@ struct InboxController: RouteCollection {
             .all()
         let friends = try await User.query(on: req.db).filter(\.$id ~~ Array(friendIDs)).all()
 
-        let days = ServerDay(timeZone: req.application.appConfig.timeZone)
-        let todayKey = days.key(for: .now)
+        let fallback = req.application.appConfig.timeZone
+        let myTodayKey = ServerDay(timeZone: try await req.rememberCallerTimeZone()).key(for: .now)
+        // Keys are plain dates, so any one calendar can do the arithmetic between them.
+        let days = ServerDay(timeZone: fallback)
         let calculator = StreakCalculator(days: days)
 
         return try friends.map { friend in
             let friendID = try friend.requireID()
+            let theirTodayKey = ServerDay(timeZone: friend.timeZone(default: fallback)).key(for: .now)
+            let todayKey = min(myTodayKey, theirTodayKey)   // yyyy-MM-dd sorts chronologically
             let sent = Set(rows.filter { $0.senderID == userID && $0.recipientID == friendID }.map(\.day))
             let received = Set(rows.filter { $0.senderID == friendID && $0.recipientID == userID }.map(\.day))
-            let result = calculator.streak(aToB: sent, bToA: received, today: .now)
+            let result = calculator.streak(aToB: sent, bToA: received, today: days.date(forKey: todayKey) ?? .now)
             return StreakDTO(friend: try friend.toDTO(), count: result.count,
                              sentToday: sent.contains(todayKey), receivedToday: received.contains(todayKey),
                              graceUsedThisWeek: result.graceUsedThisWeek)
