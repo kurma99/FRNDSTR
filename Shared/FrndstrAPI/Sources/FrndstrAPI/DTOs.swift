@@ -399,10 +399,18 @@ public struct CreateMomentRequest: Codable, Sendable, Equatable {
     /// Chosen by the phone once per moment and sent again on every retry. The server uses it as the
     /// moment's ID, so a retry after a lost response returns the first moment instead of creating a copy.
     public var clientID: UUID?
+    /// When the photo was taken, for moments sent later (no connection at the time). Decides which
+    /// day it counts for and the date of its post; the 24 hours still start when it arrives.
+    public var takenAt: Date?
+    /// Send to everyone who is a friend when it arrives (`recipientIDs` is then only for older servers).
+    public var allFriends: Bool?
 
     public init(caption: String?, recipientIDs: [UUID], layout: MomentLayout? = nil, postMediaID: UUID? = nil,
-                postMediaIDs: [UUID]? = nil, location: PostLocation? = nil, clientID: UUID? = nil) {
+                postMediaIDs: [UUID]? = nil, location: PostLocation? = nil, clientID: UUID? = nil,
+                takenAt: Date? = nil, allFriends: Bool? = nil) {
         self.clientID = clientID
+        self.takenAt = takenAt
+        self.allFriends = allFriends
         self.caption = caption
         self.recipientIDs = recipientIDs
         self.layout = layout

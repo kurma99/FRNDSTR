@@ -44,6 +44,7 @@ struct FrndstrApp: App {
     private static func backgroundRefresh() async {
         scheduleBackgroundRefresh()
         if let app = Notifier.shared.app {
+            await MomentOutbox.shared.flush(using: app)
             await Notifier.shared.sync(using: app)
         }
     }

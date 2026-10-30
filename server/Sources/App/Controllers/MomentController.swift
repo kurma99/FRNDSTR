@@ -42,10 +42,10 @@ struct MomentController: RouteCollection {
         }
         // No recipients is fine: a moment just for yourself (e.g. before you have friends).
         // It still counts as today's moment and can become a post when it's over.
-        let recipientIDs = Array(Set(body.recipientIDs))
-
-        // Only accepted friends may receive it.
+        // Only accepted friends may receive it. "All friends" means whoever they are now: a moment
+        // queued offline shouldn't fail because the phone's list went out of date.
         let friendIDs = try await Self.friendIDs(of: senderID, on: req.db)
+        let recipientIDs = body.allFriends == true ? Array(friendIDs) : Array(Set(body.recipientIDs))
         guard Set(recipientIDs).isSubset(of: friendIDs) else {
             throw Abort(.badRequest, reason: "Moments can only be sent to friends.")
         }
@@ -84,11 +84,15 @@ struct MomentController: RouteCollection {
         moment.latitude = body.location?.latitude
         moment.longitude = body.location?.longitude
         moment.placeName = body.location?.placeName
+        // Taken earlier and sent once back online: it counts for when it was taken (no limit how long
+        // ago; a phone clock running ahead can't date it into the future).
+        let takenAt = min(body.takenAt ?? .now, .now)
+        moment.takenAt = body.takenAt == nil ? nil : takenAt
         // The moment counts for the calendar date where it was taken: the place's zone when the
         // phone found one, else the phone's own. The key is stored, so flying home later doesn't move it.
         let phoneZone = try await req.rememberCallerTimeZone()
         let placeZone = body.location?.timeZone.flatMap(TimeZone.init(identifier:))
-        let dayKey = ServerDay(timeZone: placeZone ?? phoneZone).key(for: .now)
+        let dayKey = ServerDay(timeZone: placeZone ?? phoneZone).key(for: takenAt)
         try await req.db.transaction { db in
             try await moment.create(on: db)
             for recipient in recipientIDs {

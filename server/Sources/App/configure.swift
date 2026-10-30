@@ -40,6 +40,7 @@ func configure(_ app: Application, config: AppConfig = .fromEnvironment()) async
     app.migrations.add(CreateMemoryBackups())
     app.migrations.add(AddMomentPostMediaList())
     app.migrations.add(AddMemoryTimeZone())
+    app.migrations.add(AddMomentTakenAt())
 
     // Same ISO-8601 dates as the app.
     ContentConfiguration.global.use(encoder: API.makeEncoder(), for: .json)

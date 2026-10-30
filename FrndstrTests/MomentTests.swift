@@ -49,6 +49,44 @@ private func solidImage(_ color: UIColor, size: CGSize) -> UIImage {
     }
 }
 
+@Suite struct OutboxTests {
+    private func entry(takenAt seconds: TimeInterval) -> OutboxEntry {
+        OutboxEntry(id: UUID(), takenAt: Date(timeIntervalSince1970: seconds), caption: nil,
+                    layout: MomentLayout(insetCorner: .topLeading), allFriends: true, recipientIDs: [],
+                    recipientNames: [], location: nil, shareAsPost: false)
+    }
+
+    @Test func keepsMomentsInTheOrderTheyWereTaken() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "outbox-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = OutboxStore(root: root)
+        let later = entry(takenAt: 2_000), earlier = entry(takenAt: 1_000)
+        try store.save(later, back: Data([1]), front: Data([2]))
+        try store.save(earlier, back: Data([3]), front: Data([4]))
+
+        #expect(store.all().map(\.id) == [earlier.id, later.id])
+        #expect(try Data(contentsOf: store.photoURL(for: earlier.id, "front")) == Data([4]))
+
+        var refused = earlier
+        refused.failure = "Moments can only be sent to friends."
+        try store.update(refused)
+        #expect(store.all().first?.failure == refused.failure)
+        // Updating the details keeps the photos.
+        #expect(try Data(contentsOf: store.photoURL(for: earlier.id, "back")) == Data([3]))
+
+        store.remove(later.id)
+        #expect(store.all().map(\.id) == [earlier.id])
+    }
+
+    @Test func onlyConnectionProblemsAreRetried() {
+        #expect(OutboxStore.isWorthRetrying(APIError.transport(URLError(.notConnectedToInternet))))
+        #expect(OutboxStore.isWorthRetrying(APIError.server(status: 502, reason: "Bad gateway")))
+        #expect(OutboxStore.isWorthRetrying(APIError.unauthorized(reason: "Signed out")))
+        #expect(!OutboxStore.isWorthRetrying(APIError.server(status: 400, reason: "Moments can only be sent to friends.")))
+        #expect(!OutboxStore.isWorthRetrying(APIError.server(status: 413, reason: "Too large")))
+    }
+}
+
 @Suite struct MomentArchiveTests {
     @Test func saveListAndDelete() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "archive-\(UUID().uuidString)")

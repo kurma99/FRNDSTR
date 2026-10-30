@@ -38,6 +38,7 @@ private func sendMoment(_ app: Application, token: String, jpeg: Data, to recipi
                         caption: String? = nil, layout: MomentLayout? = nil,
                         postMediaID: UUID? = nil, postMediaIDs: [UUID]? = nil,
                         location: PostLocation? = nil, clientID: UUID? = nil,
+                        takenAt: Date? = nil, allFriends: Bool? = nil,
                         phoneTimeZone: String? = nil) async throws -> (status: HTTPStatus, body: Data) {
     let boundary = "Boundary-\(UUID().uuidString)"
     var body = Data()
@@ -54,7 +55,8 @@ private func sendMoment(_ app: Application, token: String, jpeg: Data, to recipi
          data: try API.makeEncoder().encode(CreateMomentRequest(caption: caption, recipientIDs: recipients,
                                                                 layout: layout, postMediaID: postMediaID,
                                                                 postMediaIDs: postMediaIDs, location: location,
-                                                                clientID: clientID)))
+                                                                clientID: clientID, takenAt: takenAt,
+                                                                allFriends: allFriends)))
     body.append(Data("--\(boundary)--\r\n".utf8))
 
     var result: (HTTPStatus, Data) = (.internalServerError, Data())
@@ -136,6 +138,33 @@ struct MomentTests {
             let days = try await MomentDay.query(on: app.db).all()
             #expect(days.first { $0.senderID == annaID }?.day == kiritimati)
             #expect(days.first { $0.senderID == benID }?.day == pagoPago)
+        }
+    }
+
+    /// Taken three days ago offline, sent now to "all friends" with a stale (empty) list: it counts for
+    /// the day it was taken, reaches today's friends, and still gets its full 24 hours from now.
+    @Test func sentLaterCountsForWhenItWasTaken() async throws {
+        try await withTestApp { app, dir in
+            let anna = try await signUp(app, username: "anna")
+            let ben = try await signUp(app, username: "ben")
+            try await befriend(app, anna, ben)
+            let annaID = try await userID(app, anna), benID = try await userID(app, ben)
+            let jpeg = try await makeSample("t.jpg", in: dir, args: ["-f", "lavfi", "-i", "color=blue:s=32x32", "-frames:v", "1"])
+            let berlin = ServerDay(timeZone: TimeZone(identifier: "Europe/Berlin")!)
+            let threeDaysAgo = berlin.adding(days: -3, to: .now)
+
+            let sent = try decoded(MomentDTO.self, try await sendMoment(
+                app, token: anna, jpeg: jpeg, to: [], takenAt: threeDaysAgo, allFriends: true, phoneTimeZone: "Europe/Berlin"))
+            #expect(sent.expiresAt > Date().addingTimeInterval(API.Moments.lifetime - 60))
+            let day = try #require(try await MomentDay.query(on: app.db).first())
+            #expect(day.recipientID == benID && day.senderID == annaID)
+            #expect(day.day == berlin.key(for: threeDaysAgo))
+            #expect(try await Moment.find(sent.id, on: app.db)?.takenAt != nil)
+
+            // A phone clock running ahead can't file it under a future date.
+            _ = try await sendMoment(app, token: ben, jpeg: jpeg, to: [annaID], takenAt: berlin.adding(days: 5, to: .now),
+                                     phoneTimeZone: "Europe/Berlin")
+            #expect(try await MomentDay.query(on: app.db).filter(\.$senderID == benID).first()?.day == berlin.key(for: .now))
         }
     }
 

@@ -23,6 +23,8 @@ final class Moment: Model, @unchecked Sendable {
     @OptionalField(key: "latitude") var latitude: Double?
     @OptionalField(key: "longitude") var longitude: Double?
     @OptionalField(key: "place_name") var placeName: String?
+    /// When the photo was taken, if it arrived later (sent once the phone was back online).
+    @OptionalField(key: "taken_at") var takenAt: Date?
 
     var location: PostLocation? {
         guard let latitude, let longitude else { return nil }
@@ -145,6 +147,16 @@ struct AddMomentPostMediaList: AsyncMigration {
     }
 }
 
+struct AddMomentTakenAt: AsyncMigration {
+    func prepare(on database: any Database) async throws {
+        try await database.schema(Moment.schema).field("taken_at", .datetime).update()
+    }
+
+    func revert(on database: any Database) async throws {
+        try await database.schema(Moment.schema).deleteField("taken_at").update()
+    }
+}
+
 /// Deletes expired moments (rows + files) and publishes the opted-in ones as posts.
 /// Runs at startup and every 10 minutes.
 struct MomentJanitor: LifecycleHandler {
@@ -199,7 +211,7 @@ struct MomentJanitor: LifecycleHandler {
         }
         guard !media.isEmpty else { return }
 
-        let takenAt = moment.createdAt ?? .now
+        let takenAt = moment.takenAt ?? moment.createdAt ?? .now
         try await db.transaction { db in
             let post = Post(authorID: moment.$sender.id, caption: moment.caption)
             post.takenAt = takenAt

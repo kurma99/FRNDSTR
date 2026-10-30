@@ -68,24 +68,25 @@ final class MomentsModel {
     struct SendResult {
         /// Non-fatal problems (e.g. saving to Photos failed).
         var warnings: [String]
+        /// No connection: it's waiting in the outbox and goes out once the server answers again.
+        var queued = false
     }
 
-    /// Post photos already uploaded for a moment, so a retry doesn't upload them again.
-    @ObservationIgnored private var uploadedPostMedia: [UUID: [UUID]] = [:]
-
-    /// Keeps a local copy first, then uploads. With `shareAsPost` both photos are uploaded as a two-photo post
-    /// (big one first), which the server only publishes once the moment has expired.
+    /// Keeps a local copy first, then sends through the outbox, so a moment taken without a connection
+    /// simply waits there. With `shareAsPost` both photos are uploaded as a two-photo post (big one
+    /// first), which the server only publishes once the moment has expired.
     /// `id` stays the same for every retry of one moment, so neither Memories nor the server get copies.
-    func send(_ moment: EditedMoment, id: UUID, to recipients: [UserDTO], location: PostLocation?, shareAsPost: Bool,
-              saveToPhotos: Bool, using app: AppModel) async throws -> SendResult {
-        guard let client = app.client, let me = app.currentUser else { throw APIError.invalidResponse }
+    func send(_ moment: EditedMoment, id: UUID, takenAt: Date, to recipients: [UserDTO], allFriends: Bool,
+              location: PostLocation?, shareAsPost: Bool, saveToPhotos: Bool,
+              using app: AppModel) async throws -> SendResult {
+        guard let me = app.currentUser else { throw APIError.invalidResponse }
         let caption = moment.caption.trimmingCharacters(in: .whitespacesAndNewlines)
         let files = await Self.prepare(back: moment.back, front: moment.front, layout: moment.layout)
         var warnings: [String] = []
 
         do {
             try MomentArchive.forUser(me.id).save(
-                ArchivedMoment(id: id, createdAt: .now, caption: caption.isEmpty ? nil : caption,
+                ArchivedMoment(id: id, createdAt: takenAt, caption: caption.isEmpty ? nil : caption,
                                recipientNames: recipients.map(\.displayName), layout: moment.layout,
                                location: location),
                 back: files.back, front: files.front, composite: files.composite)
@@ -93,37 +94,21 @@ final class MomentsModel {
             warnings.append(String(localized: "Your copy couldn't be kept on this iPhone."))
         }
 
-        do {
-            // The post gets both photos uncropped: the big one first, then the small one.
-            var postMediaIDs: [UUID] = shareAsPost ? uploadedPostMedia[id] ?? [] : []
-            if shareAsPost && postMediaIDs.isEmpty {
-                let photos = moment.layout.swapped ? [files.front, files.back] : [files.back, files.front]
-                for photo in photos {
-                    let file = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).jpg")
-                    try photo.write(to: file)
-                    defer { try? FileManager.default.removeItem(at: file) }
-                    postMediaIDs.append(try await client.uploadMedia(fileURL: file, contentType: "image/jpeg").id)
-                }
-                uploadedPostMedia[id] = postMediaIDs
-            }
-            _ = try await client.sendMoment(back: files.back, front: files.front, request: CreateMomentRequest(
-                caption: caption.isEmpty ? nil : caption, recipientIDs: recipients.map(\.id),
-                layout: moment.layout, postMediaIDs: postMediaIDs.isEmpty ? nil : postMediaIDs, location: location,
-                clientID: id))
-            uploadedPostMedia[id] = nil
-        } catch {
-            app.handle(error)
-            throw error
-        }
+        try MomentOutbox.shared.enqueue(OutboxEntry(
+            id: id, takenAt: takenAt, caption: caption.isEmpty ? nil : caption, layout: moment.layout,
+            allFriends: allFriends, recipientIDs: recipients.map(\.id), recipientNames: recipients.map(\.displayName),
+            location: location, shareAsPost: shareAsPost), back: files.back, front: files.front, for: me.id)
+        let arrived = try await MomentOutbox.shared.sendNow(id, using: app)
 
         if saveToPhotos {
             do {
                 try await PhotoSaver.saveImage(files.composite, metadata: SaveMetadata(
-                    caption: caption.isEmpty ? nil : caption, location: location, date: .now))
+                    caption: caption.isEmpty ? nil : caption, location: location, date: takenAt))
             } catch {
                 warnings.append(error.localizedDescription)
             }
         }
+        guard arrived else { return SendResult(warnings: warnings, queued: true) }
 
         await refresh(using: app)
         Task { await MemoryBackup.shared.sync(using: app, force: true) }

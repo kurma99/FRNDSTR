@@ -118,8 +118,12 @@ struct MomentSendView: View {
     @State private var isSending = false
     /// One ID for this moment, reused when Send is tapped again after an error.
     @State private var momentID = UUID()
+    /// When it was taken, even if it's only sent hours later.
+    @State private var takenAt = Date.now
     @State private var errorMessage: String?
     @State private var warnings: [String] = []
+    /// No connection: it's waiting to be sent.
+    @State private var isQueued = false
 
     private var allFriends: [UserDTO] { friends.overview.friends }
     private var recipients: [UserDTO] {
@@ -173,12 +177,13 @@ struct MomentSendView: View {
             } message: {
                 Text(errorMessage ?? "")
             }
-            .alert("Sent, with a note", isPresented: Binding(
-                get: { !warnings.isEmpty }, set: { if !$0 { warnings = []; dismiss() } }
+            .alert(isQueued ? "Sent when you're online" : "Sent, with a note", isPresented: Binding(
+                get: { !warnings.isEmpty || isQueued }, set: { if !$0 { warnings = []; isQueued = false; dismiss() } }
             )) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(warnings.joined(separator: "\n\n"))
+                Text(((isQueued ? [String(localized: "There's no connection right now. Your moment is in your Memories and goes out by itself as soon as Frndstr reaches the server again. It counts for the day you took it.")] : [])
+                      + warnings).joined(separator: "\n\n"))
             }
         }
     }
@@ -337,10 +342,16 @@ struct MomentSendView: View {
             defer { isSending = false }
             do {
                 let place = options.addLocation ? await location.resolved() : nil
-                let result = try await model.send(moment, id: momentID, to: recipients, location: place,
-                                                  shareAsPost: options.shareAsPost,
+                let result = try await model.send(moment, id: momentID, takenAt: takenAt, to: recipients,
+                                                  allFriends: options.audience == .allFriends && !isJustForMe,
+                                                  location: place, shareAsPost: options.shareAsPost,
                                                   saveToPhotos: options.saveToPhotos, using: app)
-                if result.warnings.isEmpty { dismiss() } else { warnings = result.warnings }
+                if result.warnings.isEmpty && !result.queued {
+                    dismiss()
+                } else {
+                    isQueued = result.queued
+                    warnings = result.warnings
+                }
             } catch {
                 errorMessage = error.localizedDescription
             }

@@ -10,6 +10,7 @@ struct MomentsView: View {
     let friends: FriendsModel
 
     @Environment(AppModel.self) private var app
+    private let outbox = MomentOutbox.shared
     @State private var showCapture = false
     /// Whose live moments the story player shows.
     @State private var playing: StoryGroup?
@@ -48,6 +49,7 @@ struct MomentsView: View {
                     statusCard
                     if model.streaks.contains(where: { $0.count > 0 }) { streakSection }
                     receivedSection
+                    if !outbox.entries.isEmpty { waitingSection }
                     if !model.sent.isEmpty { sentSection }
                 }
                 .padding(.vertical, 12)
@@ -78,7 +80,14 @@ struct MomentsView: View {
                         .accessibilityIdentifier("newMomentButton")
                 }
             }
-            .refreshable { await model.refresh(using: app) }
+            .refreshable {
+                await outbox.flush(using: app)
+                await model.refresh(using: app)
+            }
+            // A waiting moment went out (connection back): show it under today's moments.
+            .onChange(of: outbox.entries.count) { old, new in
+                if new < old { Task { await model.refresh(using: app) } }
+            }
             .task {
                 await model.refresh(using: app)
                 await friends.refresh(using: app)
@@ -241,6 +250,27 @@ struct MomentsView: View {
             .scrollIndicators(.hidden)
         }
         .accessibilityIdentifier("streakSection")
+    }
+
+    private var waitingSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Waiting to send").font(.headline).padding(.horizontal, 16)
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(outbox.entries) { entry in
+                        WaitingMomentCard(entry: entry, thumbnail: app.currentUser.map {
+                            MomentArchive.forUser($0.id).thumbnailURL(for: entry.id)
+                        }) {
+                            outbox.discard(entry.id)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+            }
+            .scrollIndicators(.hidden)
+        }
+        .accessibilityIdentifier("waitingSection")
     }
 
     private var sentSection: some View {
@@ -413,6 +443,44 @@ struct LockedMomentPlaceholder: View {
             }
             .clipShape(.rect(cornerRadius: 24))
             .accessibilityIdentifier("lockedMoment")
+    }
+}
+
+/// A moment taken without a connection. It goes out by itself; one the server refused can be dropped
+/// (it stays in Memories).
+private struct WaitingMomentCard: View {
+    let entry: OutboxEntry
+    let thumbnail: URL?
+    var onDiscard: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            LocalImage(url: thumbnail, maxPixel: 300)
+                .aspectRatio(3 / 4, contentMode: .fit)
+                .clipShape(.rect(cornerRadius: 16))
+                .frame(width: 150)
+            if let caption = entry.caption {
+                Text(caption).font(.caption).lineLimit(2)
+            }
+            Text(entry.takenAt, format: .dateTime.weekday().hour().minute())
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let failure = entry.failure {
+                Label(failure, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(3)
+                Button("Don't send", role: .destructive, action: onDiscard)
+                    .font(.caption.weight(.medium))
+            } else {
+                Label("Sends when you're online", systemImage: "icloud.and.arrow.up")
+                    .font(.caption.weight(.medium))
+            }
+        }
+        .frame(width: 150, alignment: .leading)
+        .padding(10)
+        .glassEffect(.regular, in: .rect(cornerRadius: 22))
+        .accessibilityIdentifier("waitingMoment")
     }
 }
 

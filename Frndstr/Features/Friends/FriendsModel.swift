@@ -29,10 +29,15 @@ final class FriendsModel {
 
     func refresh(using app: AppModel) async {
         guard let client = app.client else { return }
+        // Offline, the last list stands in, so a moment can still be addressed and queued.
+        if !hasLoaded, let me = app.currentUser, let cached = Self.cachedOverview(for: me.id) {
+            overview = cached
+        }
         do {
             async let overview = client.friends()
             async let everyone = client.users()
             (self.overview, self.everyone) = try await (overview, everyone)
+            if let me = app.currentUser { Self.cache(self.overview, for: me.id) }
             let streakList = (try? await client.streaks()) ?? []
             streaks = Dictionary(uniqueKeysWithValues: streakList.map { ($0.friend.id, $0) })
             errorMessage = nil
@@ -53,6 +58,17 @@ final class FriendsModel {
     /// Cancel, decline or unfriend.
     func remove(_ user: UserDTO, using app: AppModel) async {
         await mutate(using: app) { try await $0.removeFriend(user.id) }
+    }
+
+    private static func cacheKey(for userID: UUID) -> String { "friends.overview.\(userID.uuidString)" }
+
+    private static func cachedOverview(for userID: UUID) -> FriendsOverview? {
+        UserDefaults.standard.data(forKey: cacheKey(for: userID))
+            .flatMap { try? API.makeDecoder().decode(FriendsOverview.self, from: $0) }
+    }
+
+    private static func cache(_ overview: FriendsOverview, for userID: UUID) {
+        UserDefaults.standard.set(try? API.makeEncoder().encode(overview), forKey: cacheKey(for: userID))
     }
 
     private func mutate(using app: AppModel, _ work: (APIClient) async throws -> ProfileDTO) async {

@@ -84,6 +84,7 @@ struct MainTabView: View {
             // Coming back to the app: show what happened meanwhile.
             guard phase == .active else { return }
             Task {
+                await MomentOutbox.shared.flush(using: app)
                 async let posts: Void = feed.refresh(using: app)
                 async let momentFeed: Void = moments.refresh(using: app)
                 async let people: Void = friends.refresh(using: app)
@@ -94,6 +95,10 @@ struct MainTabView: View {
             if let route { open(route) }
         }
         .task {
+            // Moments taken without a connection go out first, and again whenever it comes back.
+            MomentOutbox.shared.load(for: app.currentUser?.id)
+            MomentOutbox.shared.startWatchingConnection(using: app)
+            await MomentOutbox.shared.flush(using: app)
             await app.refreshCurrentUser()
             await app.refreshConfig()
             await moments.refresh(using: app)
