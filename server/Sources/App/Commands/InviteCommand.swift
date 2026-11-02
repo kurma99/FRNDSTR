@@ -48,6 +48,29 @@ struct AdminCommand: AsyncCommand {
     }
 }
 
+/// `docker compose exec frndstr ./App password <username>`: for when nobody can log in to the dashboard.
+struct PasswordCommand: AsyncCommand {
+    struct Signature: CommandSignature {
+        @Argument(name: "username", help: "The account that gets a new password.")
+        var username: String
+
+        init() {}
+    }
+
+    var help: String { "Sets a new random password, prints it and logs the account out of the app everywhere." }
+
+    func run(using context: CommandContext, signature: Signature) async throws {
+        let app = context.application
+        guard let user = try await User.query(on: app.db).filter(\.$username == signature.username.lowercased()).first() else {
+            context.console.error("No user named \(signature.username).")
+            return
+        }
+        let password = try await UserAdmin.resetPassword(user, app: app)
+        context.console.print("New password for \(user.displayName) (@\(user.username)): \(password)")
+        context.console.print("They were logged out of the app and can sign in with it now (app and /admin).")
+    }
+}
+
 enum Bootstrap {
     /// A fresh server has no accounts: point the admin to the web setup page.
     static func announceSetup(on app: Application) async throws {

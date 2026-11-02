@@ -48,6 +48,13 @@ docker compose exec frndstr ./App admin anna           # grant
 docker compose exec frndstr ./App admin anna --revoke   # revoke
 ```
 
+Forgotten password (also for the admin, when nobody can log in to the dashboard). Prints a new
+random password and logs the account out of the app everywhere:
+
+```sh
+docker compose exec frndstr ./App password anna
+```
+
 `TIME_ZONE` in `.env` (IANA name, default `Europe/Berlin`) defines "today" for the moments rule.
 
 ## Develop locally (macOS)

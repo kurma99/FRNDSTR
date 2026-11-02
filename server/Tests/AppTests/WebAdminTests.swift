@@ -223,3 +223,24 @@ struct TakeoutTests {
         }
     }
 }
+
+@Suite struct PasswordCommandTests {
+    /// What `./App password anna` does: the printed password works, the old one and old sessions don't.
+    @Test func newPasswordWorksAndOldSessionsEnd() async throws {
+        try await withTestApp { app, _ in
+            let oldToken = try await signUp(app, username: "anna")
+            let anna = try #require(try await User.query(on: app.db).filter(\.$username == "anna").first())
+            let password = try await UserAdmin.resetPassword(anna, app: app)
+
+            try await app.testing().test(.GET, "api/me", beforeRequest: { req in
+                req.headers.bearerAuthorization = BearerAuthorization(token: oldToken)
+            }, afterResponse: { res in #expect(res.status == .unauthorized) })
+
+            for (attempt, expected) in [("supersecret", HTTPStatus.unauthorized), (password, .ok)] {
+                try await app.testing().test(.POST, "api/auth/login", beforeRequest: { req in
+                    try req.content.encode(LoginRequest(username: "anna", password: attempt))
+                }, afterResponse: { res in #expect(res.status == expected) })
+            }
+        }
+    }
+}

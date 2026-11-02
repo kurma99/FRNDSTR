@@ -10,12 +10,22 @@ enum UserAdmin {
 
     /// Sets a new random password, logs the user out everywhere and returns the password to hand over.
     static func resetPassword(_ user: User, req: Request) async throws -> String {
+        try await resetPassword(user, on: req.db) { try await req.password.async.hash($0) }
+    }
+
+    /// The same from the command line (`./App password <username>`), where there's no request.
+    static func resetPassword(_ user: User, app: Application) async throws -> String {
+        try await resetPassword(user, on: app.db) { try app.password.hash($0) }
+    }
+
+    private static func resetPassword(_ user: User, on db: any Database,
+                                      hash: (String) async throws -> String) async throws -> String {
         let alphabet = Array("abcdefghjkmnpqrstuvwxyz23456789")
         var generator = SystemRandomNumberGenerator()
         let password = String((0..<12).map { _ in alphabet.randomElement(using: &generator)! })
-        user.passwordHash = try await req.password.async.hash(password)
-        try await user.save(on: req.db)
-        try await kick(try user.requireID(), on: req.db)
+        user.passwordHash = try await hash(password)
+        try await user.save(on: db)
+        try await kick(try user.requireID(), on: db)
         return password
     }
 
